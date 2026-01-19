@@ -1,0 +1,14 @@
+[project]
+name = "ubuntu-system-repair-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.14.3",
+    "langchain>=1.2.4",
+    "langchain-mcp-adapters>=0.2.1",
+    "langchain-ollama>=1.0.1",
+    "langgraph>=1.0.6",
+    "python-dotenv>=1.2.1",
+]
