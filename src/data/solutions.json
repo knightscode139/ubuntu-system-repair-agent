@@ -1,0 +1,5073 @@
+[
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Could not get lock /var/lib/dpkg/lock-frontend - open (11: Resource temporarily unavailable)",
+    "context": "Occurs during package installation or update.",
+    "solution_explanation": "Another apt process (e.g., unattended-upgrades) is running. Check for processes, wait if automatic, or stop if stuck.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ps aux | grep -E 'apt|dpkg|unattended' | grep -v grep",
+        "description": "Check which process is holding the lock"
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "command": "sudo fuser -v /var/lib/dpkg/lock-frontend",
+        "description": "Identify the exact process holding the lock"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "sudo killall apt apt-get 2>/dev/null || true",
+        "description": "Stop apt processes if they're stuck",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "cleanup",
+        "command": "sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock",
+        "description": "Remove lock files"
+      },
+      {
+        "step": 5,
+        "action": "repair",
+        "command": "sudo dpkg --configure -a",
+        "description": "Complete any interrupted package configurations"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get check",
+    "alternative_solution": "Wait 5-10 minutes for unattended-upgrades to complete naturally"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem.",
+    "context": "Update interrupted by power failure or forced shutdown.",
+    "solution_explanation": "Complete the interrupted package configuration.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo dpkg --audit",
+        "description": "List packages with incomplete configuration"
+      },
+      {
+        "step": 2,
+        "action": "fix",
+        "command": "sudo dpkg --configure -a",
+        "description": "Complete interrupted configurations"
+      },
+      {
+        "step": 3,
+        "action": "cleanup",
+        "command": "sudo apt-get install -f",
+        "description": "Fix any remaining dependency issues"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l | grep -E '^iU|^iF'",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "dpkg: error processing package {PACKAGE_NAME} (--configure)",
+    "context": "Package installation/configuration failed.",
+    "solution_explanation": "Fix the specific package configuration and repair dependencies.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "dpkg -l | grep {PACKAGE_NAME}",
+        "description": "Check package status",
+        "placeholder": "{PACKAGE_NAME}"
+      },
+      {
+        "step": 2,
+        "action": "fix",
+        "command": "sudo dpkg --configure {PACKAGE_NAME}",
+        "description": "Try to configure the package",
+        "placeholder": "{PACKAGE_NAME}"
+      },
+      {
+        "step": 3,
+        "action": "repair",
+        "command": "sudo apt-get install -f",
+        "description": "Fix broken dependencies"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {PACKAGE_NAME} | grep '^ii'",
+    "alternative_solution": "sudo apt-get remove --purge {PACKAGE_NAME} && sudo apt-get install {PACKAGE_NAME}"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "dpkg: dependency problems prevent configuration of {PACKAGE_NAME}",
+    "context": "Missing dependencies during package installation.",
+    "solution_explanation": "Use apt-get install -f to automatically install missing dependencies.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo apt-cache depends {PACKAGE_NAME}",
+        "description": "Check package dependencies",
+        "placeholder": "{PACKAGE_NAME}"
+      },
+      {
+        "step": 2,
+        "action": "fix",
+        "command": "sudo apt-get install -f -y",
+        "description": "Install missing dependencies automatically"
+      },
+      {
+        "step": 3,
+        "action": "validate",
+        "command": "dpkg -l {PACKAGE_NAME}",
+        "description": "Verify package is properly installed",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {PACKAGE_NAME} | grep '^ii'",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "The following packages have unmet dependencies: {PACKAGE_NAME} : Depends: {DEPENDENCY} but it is not installed",
+    "context": "Installing package with missing dependencies.",
+    "solution_explanation": "Install the missing dependency package first, then fix dependencies.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "apt-cache policy {DEPENDENCY}",
+        "description": "Check if dependency is available",
+        "placeholder": "{DEPENDENCY}"
+      },
+      {
+        "step": 2,
+        "action": "fix",
+        "command": "sudo apt-get install {DEPENDENCY} -y",
+        "description": "Install the missing dependency",
+        "placeholder": "{DEPENDENCY}"
+      },
+      {
+        "step": 3,
+        "action": "repair",
+        "command": "sudo apt-get install -f",
+        "description": "Fix any remaining dependency issues"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {DEPENDENCY} | grep '^ii'",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Broken packages",
+    "context": "General package installation error.",
+    "solution_explanation": "Detect and repair broken packages by updating package lists and fixing dependencies.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "apt-get check",
+        "description": "Check for broken dependencies"
+      },
+      {
+        "step": 2,
+        "action": "update",
+        "command": "sudo apt-get update --fix-missing",
+        "description": "Update package lists with missing packages"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "sudo apt-get install -f",
+        "description": "Fix broken dependencies"
+      },
+      {
+        "step": 4,
+        "action": "validate",
+        "command": "apt-get check",
+        "description": "Verify no broken packages remain"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get check 2>&1 | grep -q '0 not fully installed'",
+    "alternative_solution": "sudo dpkg --configure -a && sudo apt-get clean && sudo apt-get update"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Sub-process /usr/bin/dpkg returned an error code (1)",
+    "context": "General dpkg error during package operations.",
+    "solution_explanation": "Reconfigure all packages and clean the cache to resolve dpkg errors.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo dpkg --audit",
+        "description": "List all problematic packages"
+      },
+      {
+        "step": 2,
+        "action": "repair",
+        "command": "sudo dpkg --configure -a",
+        "description": "Reconfigure all incomplete packages"
+      },
+      {
+        "step": 3,
+        "action": "cleanup",
+        "command": "sudo apt-get clean",
+        "description": "Clean package cache"
+      },
+      {
+        "step": 4,
+        "action": "fix",
+        "command": "sudo apt-get install -f",
+        "description": "Fix any remaining issues"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg --audit",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "Reading package lists... Error!",
+    "context": "Running apt update with corrupted package lists.",
+    "solution_explanation": "Package list files are corrupted. Remove and download fresh lists.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "backup",
+        "command": "sudo cp -r /var/lib/apt/lists /var/lib/apt/lists.backup",
+        "description": "Backup current lists (optional)"
+      },
+      {
+        "step": 2,
+        "action": "cleanup",
+        "command": "sudo rm -rf /var/lib/apt/lists/*",
+        "description": "Remove corrupted package lists"
+      },
+      {
+        "step": 3,
+        "action": "recreate",
+        "command": "sudo mkdir -p /var/lib/apt/lists/partial",
+        "description": "Recreate lists directory structure"
+      },
+      {
+        "step": 4,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Download fresh package lists"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "apt-get update 2>&1 | grep -q 'Reading package lists... Done'",
+    "alternative_solution": "sudo apt-get clean && sudo apt-get update"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Encountered a section with no Package: header",
+    "context": "MergeList error during apt update.",
+    "solution_explanation": "Package list merge file is corrupted. Remove and regenerate.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "cleanup",
+        "command": "sudo rm -rf /var/lib/apt/lists/*",
+        "description": "Remove all list files including corrupted MergeList"
+      },
+      {
+        "step": 2,
+        "action": "recreate",
+        "command": "sudo mkdir -p /var/lib/apt/lists/partial",
+        "description": "Recreate directory structure"
+      },
+      {
+        "step": 3,
+        "action": "update",
+        "command": "sudo apt-get clean && sudo apt-get update",
+        "description": "Clean cache and update"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get update",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: The package lists or status file could not be parsed or opened.",
+    "context": "Package list parsing error.",
+    "solution_explanation": "Clean apt lists and status files, then fetch repositories again.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "cleanup",
+        "command": "sudo rm -rf /var/lib/apt/lists/*",
+        "description": "Remove corrupted lists"
+      },
+      {
+        "step": 2,
+        "action": "cache_clean",
+        "command": "sudo apt-get clean",
+        "description": "Clean package cache"
+      },
+      {
+        "step": 3,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Rebuild package lists"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get update",
+    "alternative_solution": "sudo dpkg --clear-avail && sudo apt-get update"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "W: GPG error: {REPOSITORY_URL} {RELEASE} InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY {KEY_ID}",
+    "context": "Added repository without importing GPG key.",
+    "solution_explanation": "Import the missing GPG key from keyserver.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "apt-key list | grep -i {KEY_ID}",
+        "description": "Check if key already exists",
+        "placeholder": "{KEY_ID}"
+      },
+      {
+        "step": 2,
+        "action": "import",
+        "command": "sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys {KEY_ID}",
+        "description": "Import the GPG key",
+        "placeholder": "{KEY_ID}"
+      },
+      {
+        "step": 3,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Update package lists with new key"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-key list | grep {KEY_ID}",
+    "alternative_solution": "wget -qO - {REPOSITORY_URL}/key.gpg | sudo apt-key add -"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Repository '{REPOSITORY_URL} {RELEASE} Release' does not have a Release file.",
+    "context": "Invalid, outdated, or unsupported PPA.",
+    "solution_explanation": "The repository is no longer maintained or doesn't support your Ubuntu version. Remove it.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "grep -r '{REPOSITORY_URL}' /etc/apt/sources.list /etc/apt/sources.list.d/",
+        "description": "Find the repository source file",
+        "placeholder": "{REPOSITORY_URL}"
+      },
+      {
+        "step": 2,
+        "action": "remove",
+        "command": "sudo add-apt-repository --remove '{REPOSITORY_LINE}' -y",
+        "description": "Remove the problematic repository",
+        "requires_confirmation": true,
+        "placeholder": "{REPOSITORY_LINE}"
+      },
+      {
+        "step": 3,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Update without the broken repository"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get update 2>&1 | grep -v 'does not have a Release file'",
+    "alternative_solution": "Manually edit /etc/apt/sources.list or /etc/apt/sources.list.d/* files"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Failed to fetch {PACKAGE_URL} 404 Not Found",
+    "context": "404 error while downloading package.",
+    "solution_explanation": "Local repository index is outdated. Package was moved or updated on server.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Refresh package lists"
+      },
+      {
+        "step": 2,
+        "action": "retry",
+        "command": "sudo apt-get install {PACKAGE_NAME}",
+        "description": "Retry installation with updated lists",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {PACKAGE_NAME}",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Failed to fetch ... Hash Sum mismatch",
+    "context": "Downloaded package file is corrupted or incomplete.",
+    "solution_explanation": "Package corruption during download. Clean cache and retry.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "cleanup",
+        "command": "sudo apt-get clean",
+        "description": "Remove all cached packages"
+      },
+      {
+        "step": 2,
+        "action": "remove_lists",
+        "command": "sudo rm -rf /var/lib/apt/lists/*",
+        "description": "Remove package lists"
+      },
+      {
+        "step": 3,
+        "action": "recreate",
+        "command": "sudo mkdir -p /var/lib/apt/lists/partial",
+        "description": "Recreate lists directory"
+      },
+      {
+        "step": 4,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Download fresh package lists and files"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get update",
+    "alternative_solution": "Change to different mirror in /etc/apt/sources.list"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Unable to locate package {PACKAGE_NAME}",
+    "context": "Package not found in repositories.",
+    "solution_explanation": "Package name is incorrect or universe/multiverse repositories are not enabled.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "apt-cache search {PACKAGE_NAME}",
+        "description": "Search for similar package names",
+        "placeholder": "{PACKAGE_NAME}"
+      },
+      {
+        "step": 2,
+        "action": "enable_repos",
+        "command": "sudo add-apt-repository universe && sudo add-apt-repository multiverse",
+        "description": "Enable additional repositories"
+      },
+      {
+        "step": 3,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Update package lists"
+      },
+      {
+        "step": 4,
+        "action": "retry",
+        "command": "apt-cache search {PACKAGE_NAME}",
+        "description": "Search again after enabling repos",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-cache show {PACKAGE_NAME}",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Package '{PACKAGE_NAME}' has no installation candidate",
+    "context": "Package exists but has no available version for your release.",
+    "solution_explanation": "Package was removed or renamed. Search for alternatives.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "search",
+        "command": "apt-cache search {PACKAGE_KEYWORD}",
+        "description": "Search for alternative package names",
+        "placeholder": "{PACKAGE_KEYWORD}"
+      },
+      {
+        "step": 2,
+        "action": "info",
+        "command": "apt-cache policy {PACKAGE_NAME}",
+        "description": "Check package availability",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Search online for Ubuntu {VERSION} alternative packages"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "apt-get: error while loading shared libraries: libapt-pkg.so.{VERSION}: cannot open shared object file",
+    "context": "Critical apt binary libraries corrupted or missing.",
+    "solution_explanation": "Apt package manager is broken. Attempt manual recovery from cache.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ls -la /var/cache/apt/archives/libapt-pkg*.deb",
+        "description": "Check if package exists in cache"
+      },
+      {
+        "step": 2,
+        "action": "emergency_install",
+        "command": "sudo dpkg -i /var/cache/apt/archives/libapt-pkg*.deb",
+        "description": "Force install from cache",
+        "requires_confirmation": true
+      },
+      {
+        "step": 3,
+        "action": "validate",
+        "command": "apt-get --version",
+        "description": "Verify apt is working"
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get --version",
+    "alternative_solution": "Boot from live USB, chroot into system, reinstall apt package"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Write error - write (28: No space left on device)",
+    "context": "Disk full during package installation.",
+    "solution_explanation": "Free up disk space by cleaning package cache and removing unused packages.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_space",
+        "command": "df -h",
+        "description": "Check disk usage"
+      },
+      {
+        "step": 2,
+        "action": "cleanup",
+        "command": "sudo apt-get clean",
+        "description": "Remove all cached packages"
+      },
+      {
+        "step": 3,
+        "action": "autoremove",
+        "command": "sudo apt-get autoremove -y",
+        "description": "Remove unused dependencies"
+      },
+      {
+        "step": 4,
+        "action": "verify",
+        "command": "df -h",
+        "description": "Check freed space"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "df -h / | awk 'NR==2 {print $5}' | sed 's/%//' | awk '{if ($1 < 95) print \"OK\"}'",
+    "alternative_solution": "sudo journalctl --vacuum-time=3d && sudo apt-get autoclean"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: You don't have enough free space in /var/cache/apt/archives/.",
+    "context": "Insufficient space in apt cache directory.",
+    "solution_explanation": "Clean apt cache to free up space.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "du -sh /var/cache/apt/archives/",
+        "description": "Check cache size"
+      },
+      {
+        "step": 2,
+        "action": "clean",
+        "command": "sudo apt-get clean",
+        "description": "Remove all cached packages"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "du -sh /var/cache/apt/archives/",
+        "description": "Verify cleanup"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "du -sh /var/cache/apt/archives/",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "dpkg: unrecoverable fatal error, aborting: files list file for package '{PACKAGE_NAME}' is missing final newline",
+    "context": "Package file list corruption.",
+    "solution_explanation": "Critical package database file is corrupted. Remove and reinstall package.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "backup",
+        "command": "sudo cp /var/lib/dpkg/info/{PACKAGE_NAME}.list /var/lib/dpkg/info/{PACKAGE_NAME}.list.backup",
+        "description": "Backup corrupted file",
+        "placeholder": "{PACKAGE_NAME}"
+      },
+      {
+        "step": 2,
+        "action": "remove",
+        "command": "sudo rm /var/lib/dpkg/info/{PACKAGE_NAME}.list",
+        "description": "Remove corrupted file",
+        "placeholder": "{PACKAGE_NAME}",
+        "requires_confirmation": true
+      },
+      {
+        "step": 3,
+        "action": "reinstall",
+        "command": "sudo apt-get install --reinstall {PACKAGE_NAME}",
+        "description": "Reinstall package to regenerate file list",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {PACKAGE_NAME} | grep '^ii'",
+    "alternative_solution": "echo '' | sudo tee -a /var/lib/dpkg/info/{PACKAGE_NAME}.list"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Failed to fetch ... Connection failed [IP: ...]",
+    "context": "No internet connection or firewall blocking access.",
+    "solution_explanation": "Network connectivity issue. Verify internet connection.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify_dns",
+        "command": "ping -c 3 8.8.8.8",
+        "description": "Check basic connectivity"
+      },
+      {
+        "step": 2,
+        "action": "verify_dns_resolution",
+        "command": "ping -c 3 archive.ubuntu.com",
+        "description": "Check DNS resolution"
+      },
+      {
+        "step": 3,
+        "action": "test_http",
+        "command": "curl -I http://archive.ubuntu.com",
+        "description": "Test HTTP connectivity"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ping -c 1 archive.ubuntu.com",
+    "alternative_solution": "Check proxy settings: env | grep -i proxy"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Directory '/var/log/apt/' missing",
+    "context": "Required apt log directory was deleted.",
+    "solution_explanation": "Recreate the missing directory structure.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "recreate",
+        "command": "sudo mkdir -p /var/log/apt/",
+        "description": "Create missing log directory"
+      },
+      {
+        "step": 2,
+        "action": "permissions",
+        "command": "sudo chown root:root /var/log/apt/ && sudo chmod 755 /var/log/apt/",
+        "description": "Set proper permissions"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ls -ld /var/log/apt/",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "debconf: delaying package configuration, since apt-utils is not installed",
+    "context": "Common warning in Docker containers or minimal installations.",
+    "solution_explanation": "Install apt-utils to enable proper package configuration.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Update package lists"
+      },
+      {
+        "step": 2,
+        "action": "install",
+        "command": "sudo apt-get install -y apt-utils",
+        "description": "Install apt-utils package"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l apt-utils | grep '^ii'",
+    "alternative_solution": "export DEBIAN_FRONTEND=noninteractive (for scripts)"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)",
+    "context": "Running apt commands without sudo privileges.",
+    "solution_explanation": "Package management requires root privileges. Use sudo.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "retry",
+        "command": "sudo apt-get update",
+        "description": "Run with sudo privileges"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "groups | grep -q sudo",
+    "alternative_solution": "Request sudo access: sudo -v"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "ModuleNotFoundError: No module named 'apt_pkg'",
+    "context": "Python apt module broken due to Python version mismatch.",
+    "solution_explanation": "Reinstall python3-apt to match current Python version.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "python3 --version",
+        "description": "Check Python version"
+      },
+      {
+        "step": 2,
+        "action": "remove",
+        "command": "sudo apt-get remove python3-apt -y",
+        "description": "Remove broken python3-apt"
+      },
+      {
+        "step": 3,
+        "action": "install",
+        "command": "sudo apt-get install python3-apt -y",
+        "description": "Reinstall python3-apt"
+      },
+      {
+        "step": 4,
+        "action": "validate",
+        "command": "python3 -c 'import apt_pkg; print(apt_pkg.version)'",
+        "description": "Test apt_pkg import"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "python3 -c 'import apt_pkg'",
+    "alternative_solution": "cd /usr/lib/python3/dist-packages && sudo ln -sf apt_pkg.*.so apt_pkg.so"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "W: Possible missing firmware /lib/firmware/{FIRMWARE_FILE}",
+    "context": "Missing firmware files after kernel or driver update.",
+    "solution_explanation": "Update or reinstall linux-firmware package.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "dpkg -l | grep linux-firmware",
+        "description": "Check linux-firmware package"
+      },
+      {
+        "step": 2,
+        "action": "reinstall",
+        "command": "sudo apt-get install --reinstall linux-firmware",
+        "description": "Reinstall firmware package"
+      },
+      {
+        "step": 3,
+        "action": "update_initramfs",
+        "command": "sudo update-initramfs -u",
+        "description": "Update initial ramdisk"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "ls /lib/firmware/{FIRMWARE_FILE}",
+    "alternative_solution": "sudo apt-get install linux-firmware-nonfree (for proprietary firmware)"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Sub-process /usr/bin/dpkg returned an error code (2)",
+    "context": "Critical dpkg error during package operations.",
+    "solution_explanation": "Repair dpkg configuration and database.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo dpkg --audit",
+        "description": "Check for package issues"
+      },
+      {
+        "step": 2,
+        "action": "configure",
+        "command": "sudo dpkg --configure -a",
+        "description": "Configure all pending packages"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "sudo apt-get install -f",
+        "description": "Fix broken dependencies"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg --audit",
+    "alternative_solution": "sudo dpkg --force-all --configure -a (use with extreme caution)"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Unmet dependencies. Try 'apt --fix-broken install' with no packages (or specify a solution).",
+    "context": "Dependency resolution deadlock.",
+    "solution_explanation": "Run fix-broken to resolve dependency conflicts.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "apt-get check",
+        "description": "Check dependency tree"
+      },
+      {
+        "step": 2,
+        "action": "fix",
+        "command": "sudo apt --fix-broken install",
+        "description": "Automatically fix broken dependencies"
+      },
+      {
+        "step": 3,
+        "action": "validate",
+        "command": "apt-get check",
+        "description": "Verify fix worked"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get check 2>&1 | grep -q '0 not fully installed'",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Unable to lock directory /var/lib/apt/lists/",
+    "context": "APT lists directory is locked by another process.",
+    "solution_explanation": "Remove the lock file after ensuring no apt processes are running.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo lsof /var/lib/apt/lists/lock",
+        "description": "Check which process holds the lock"
+      },
+      {
+        "step": 2,
+        "action": "kill",
+        "command": "sudo fuser -vki /var/lib/apt/lists/lock",
+        "description": "Interactively kill process holding lock",
+        "requires_confirmation": true
+      },
+      {
+        "step": 3,
+        "action": "remove",
+        "command": "sudo rm -f /var/lib/apt/lists/lock",
+        "description": "Remove lock file"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ls /var/lib/apt/lists/lock",
+    "alternative_solution": "Wait for automatic unlock or reboot system"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "W: Updating from such a repository can't be done securely, and is therefore disabled by default.",
+    "context": "Repository is not signed (unsigned/insecure).",
+    "solution_explanation": "Repository lacks GPG signature. Only use if you trust the source.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify_trust",
+        "command": "grep -r '{REPOSITORY_URL}' /etc/apt/sources.list /etc/apt/sources.list.d/",
+        "description": "Identify the insecure repository",
+        "placeholder": "{REPOSITORY_URL}"
+      },
+      {
+        "step": 2,
+        "action": "allow",
+        "command": "sudo apt-get update --allow-insecure-repositories",
+        "description": "Allow insecure repository (use with caution)",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Remove repository: sudo add-apt-repository --remove {REPOSITORY_LINE}"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Failed to fetch ... Size mismatch",
+    "context": "Downloaded file size doesn't match expected size.",
+    "solution_explanation": "Download was incomplete or corrupted. Clean cache and retry.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "clean",
+        "command": "sudo apt-get clean",
+        "description": "Remove all cached packages"
+      },
+      {
+        "step": 2,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Refresh package lists"
+      },
+      {
+        "step": 3,
+        "action": "retry",
+        "command": "sudo apt-get install {PACKAGE_NAME}",
+        "description": "Retry installation",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {PACKAGE_NAME}",
+    "alternative_solution": "Try different mirror or use apt-get download {PACKAGE_NAME} then dpkg -i"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "dpkg-deb: error: paste subprocess was killed by signal (Broken pipe)",
+    "context": "Connection lost or disk full during package extraction.",
+    "solution_explanation": "Installation interrupted. Fix dependencies and retry.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_space",
+        "command": "df -h /",
+        "description": "Verify disk space"
+      },
+      {
+        "step": 2,
+        "action": "configure",
+        "command": "sudo dpkg --configure -a",
+        "description": "Complete interrupted configurations"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "sudo apt-get install -f",
+        "description": "Fix broken dependencies"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg --audit",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Method http has died unexpectedly!",
+    "context": "APT transport method crashed during download.",
+    "solution_explanation": "Reinstall apt transport packages.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "dpkg -l | grep apt-transport",
+        "description": "Check installed transport methods"
+      },
+      {
+        "step": 2,
+        "action": "reinstall",
+        "command": "sudo apt-get install --reinstall apt-transport-http apt-transport-https",
+        "description": "Reinstall transport packages"
+      },
+      {
+        "step": 3,
+        "action": "update",
+        "command": "sudo apt-get update",
+        "description": "Test transport methods"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-get update",
+    "alternative_solution": "Switch to https: sed -i 's/http:/https:/g' /etc/apt/sources.list"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Unable to correct problems, you have held broken packages.",
+    "context": "Packages are manually held and preventing updates.",
+    "solution_explanation": "List held packages and unhold if necessary.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "list",
+        "command": "sudo apt-mark showhold",
+        "description": "Show all held packages"
+      },
+      {
+        "step": 2,
+        "action": "verify",
+        "command": "apt-cache policy {HELD_PACKAGE}",
+        "description": "Check why package is held",
+        "placeholder": "{HELD_PACKAGE}"
+      },
+      {
+        "step": 3,
+        "action": "unhold",
+        "command": "sudo apt-mark unhold {HELD_PACKAGE}",
+        "description": "Unhold the package",
+        "requires_confirmation": true,
+        "placeholder": "{HELD_PACKAGE}"
+      },
+      {
+        "step": 4,
+        "action": "fix",
+        "command": "sudo apt-get install -f",
+        "description": "Fix dependencies"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "apt-mark showhold",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "The following packages will be REMOVED: ubuntu-desktop",
+    "context": "Critical system package removal warning.",
+    "solution_explanation": "Dependency chain will remove essential desktop packages. Abort and use --no-remove flag.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "abort",
+        "command": "echo 'Installation aborted - would remove critical packages'",
+        "description": "Do not proceed with installation"
+      },
+      {
+        "step": 2,
+        "action": "alternative",
+        "command": "sudo apt-get install {PACKAGE_NAME} --no-remove",
+        "description": "Try installation without removing packages",
+        "placeholder": "{PACKAGE_NAME}"
+      },
+      {
+        "step": 3,
+        "action": "investigate",
+        "command": "apt-cache depends {PACKAGE_NAME}",
+        "description": "Investigate why removal is suggested",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Find alternative package that doesn't conflict with ubuntu-desktop"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Type '{INVALID_TYPE}' is not known on line {LINE_NUMBER} in source list",
+    "context": "Syntax error in sources.list file.",
+    "solution_explanation": "Fix typo in repository source file.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "backup",
+        "command": "sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup",
+        "description": "Backup sources.list"
+      },
+      {
+        "step": 2,
+        "action": "identify",
+        "command": "sed -n '{LINE_NUMBER}p' /etc/apt/sources.list",
+        "description": "Show problematic line",
+        "placeholder": "{LINE_NUMBER}"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "sudo sed -i '{LINE_NUMBER}s/{INVALID_TYPE}/deb/' /etc/apt/sources.list",
+        "description": "Fix the typo",
+        "placeholder": "{LINE_NUMBER},{INVALID_TYPE}"
+      },
+      {
+        "step": 4,
+        "action": "validate",
+        "command": "sudo apt-get update",
+        "description": "Verify fix"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "apt-get update",
+    "alternative_solution": "sudo nano /etc/apt/sources.list (manual edit)"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "debconf: unable to initialize frontend: Dialog",
+    "context": "Debconf dialog interface not available in script/automation.",
+    "solution_explanation": "Run in non-interactive mode for automated installations.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "install",
+        "command": "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y {PACKAGE_NAME}",
+        "description": "Install package in non-interactive mode",
+        "placeholder": "{PACKAGE_NAME}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "dpkg -l {PACKAGE_NAME}",
+    "alternative_solution": "export DEBIAN_FRONTEND=noninteractive (set globally)"
+  },
+  {
+    "category": "Package Management",
+    "error_trigger": "E: Problem executing scripts APT::Update::Post-Invoke-Success",
+    "context": "Post-update hook script failing.",
+    "solution_explanation": "Appstream database refresh failed. Force refresh or reinstall.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "which appstreamcli",
+        "description": "Check if appstreamcli is installed"
+      },
+      {
+        "step": 2,
+        "action": "refresh",
+        "command": "sudo appstreamcli refresh --force",
+        "description": "Force refresh appstream database"
+      },
+      {
+        "step": 3,
+        "action": "alternative",
+        "command": "sudo apt-get install --reinstall appstream",
+        "description": "Reinstall appstream if refresh fails"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "appstreamcli --version",
+    "alternative_solution": "Disable hook: echo 'APT::Update::Post-Invoke-Success:: \"\";' | sudo tee /etc/apt/apt.conf.d/99no-appstream"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Temporary failure in name resolution",
+    "context": "Cannot resolve domain names (DNS failure).",
+    "solution_explanation": "DNS resolver is not configured or not responding. Check and configure DNS servers.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "cat /etc/resolv.conf",
+        "description": "Check current DNS configuration"
+      },
+      {
+        "step": 2,
+        "action": "test_dns",
+        "command": "nslookup google.com",
+        "description": "Test DNS resolution"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf > /dev/null && echo 'nameserver 8.8.4.4' | sudo tee -a /etc/resolv.conf > /dev/null",
+        "description": "Configure Google DNS servers"
+      },
+      {
+        "step": 4,
+        "action": "validate",
+        "command": "ping -c 2 google.com",
+        "description": "Verify DNS is working"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "nslookup google.com",
+    "alternative_solution": "sudo systemctl restart systemd-resolved"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Network is unreachable",
+    "context": "Cannot reach any network destinations.",
+    "solution_explanation": "Network interface is down or no default route configured.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ip link show",
+        "description": "Check network interface status"
+      },
+      {
+        "step": 2,
+        "action": "check_routes",
+        "command": "ip route show",
+        "description": "Check routing table"
+      },
+      {
+        "step": 3,
+        "action": "identify_interface",
+        "command": "ip -br link show | grep -v lo",
+        "description": "Identify main network interface"
+      },
+      {
+        "step": 4,
+        "action": "bring_up",
+        "command": "sudo ip link set {INTERFACE} up",
+        "description": "Bring network interface up",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 5,
+        "action": "dhcp",
+        "command": "sudo dhclient {INTERFACE}",
+        "description": "Request IP address via DHCP",
+        "placeholder": "{INTERFACE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ping -c 2 8.8.8.8",
+    "alternative_solution": "sudo systemctl restart NetworkManager"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "connect: Connection refused",
+    "context": "Service is not listening on the specified port.",
+    "solution_explanation": "Target service is not running or firewall is blocking the connection.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo ss -tlnp | grep :{PORT}",
+        "description": "Check if service is listening on port",
+        "placeholder": "{PORT}"
+      },
+      {
+        "step": 2,
+        "action": "check_firewall",
+        "command": "sudo ufw status",
+        "description": "Check firewall status"
+      },
+      {
+        "step": 3,
+        "action": "check_service",
+        "command": "sudo systemctl status {SERVICE}",
+        "description": "Check service status",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nc -zv localhost {PORT}",
+    "alternative_solution": "sudo systemctl start {SERVICE}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "No route to host",
+    "context": "Host is unreachable on the network.",
+    "solution_explanation": "Network routing issue or host is down. Check connectivity and routing.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ping -c 3 {HOST}",
+        "description": "Test connectivity to host",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 2,
+        "action": "traceroute",
+        "command": "traceroute {HOST}",
+        "description": "Trace route to host",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 3,
+        "action": "check_gateway",
+        "command": "ip route | grep default",
+        "description": "Verify default gateway"
+      },
+      {
+        "step": 4,
+        "action": "test_gateway",
+        "command": "ping -c 2 $(ip route | grep default | awk '{print $3}')",
+        "description": "Test gateway connectivity"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ping -c 1 {HOST}",
+    "alternative_solution": "Check physical network connection"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "RTNETLINK answers: File exists",
+    "context": "Trying to add a route or IP that already exists.",
+    "solution_explanation": "Route or IP address already configured. Remove and re-add if needed.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ip route show",
+        "description": "Show current routes"
+      },
+      {
+        "step": 2,
+        "action": "verify_ip",
+        "command": "ip addr show",
+        "description": "Show current IP addresses"
+      },
+      {
+        "step": 3,
+        "action": "remove",
+        "command": "sudo ip route del {ROUTE}",
+        "description": "Remove existing route",
+        "placeholder": "{ROUTE}",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "add",
+        "command": "sudo ip route add {ROUTE}",
+        "description": "Add route again",
+        "placeholder": "{ROUTE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip route show | grep {ROUTE}",
+    "alternative_solution": "sudo ip route replace {ROUTE}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Failed to start Network Manager",
+    "context": "NetworkManager service failed to start.",
+    "solution_explanation": "NetworkManager configuration error or conflict with other network services.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo systemctl status NetworkManager",
+        "description": "Check NetworkManager status"
+      },
+      {
+        "step": 2,
+        "action": "check_logs",
+        "command": "sudo journalctl -u NetworkManager -n 50 --no-pager",
+        "description": "Check recent logs"
+      },
+      {
+        "step": 3,
+        "action": "check_conflicts",
+        "command": "ps aux | grep -E 'dhclient|wpa_supplicant' | grep -v grep",
+        "description": "Check for conflicting services"
+      },
+      {
+        "step": 4,
+        "action": "restart",
+        "command": "sudo systemctl restart NetworkManager",
+        "description": "Restart NetworkManager"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active NetworkManager",
+    "alternative_solution": "sudo systemctl stop systemd-networkd && sudo systemctl start NetworkManager"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Device not managed by NetworkManager",
+    "context": "Network interface is not under NetworkManager control.",
+    "solution_explanation": "Interface is likely managed by netplan or systemd-networkd. Configure NetworkManager to manage it.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "nmcli device status",
+        "description": "Check device management status"
+      },
+      {
+        "step": 2,
+        "action": "check_config",
+        "command": "cat /etc/netplan/*.yaml",
+        "description": "Check netplan configuration"
+      },
+      {
+        "step": 3,
+        "action": "backup",
+        "command": "sudo cp /etc/netplan/01-netcfg.yaml /etc/netplan/01-netcfg.yaml.backup",
+        "description": "Backup netplan config"
+      },
+      {
+        "step": 4,
+        "action": "configure",
+        "command": "echo 'network:\\n  version: 2\\n  renderer: NetworkManager' | sudo tee /etc/netplan/01-network-manager.yaml",
+        "description": "Configure NetworkManager as renderer"
+      },
+      {
+        "step": 5,
+        "action": "apply",
+        "command": "sudo netplan apply",
+        "description": "Apply netplan changes"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "nmcli device status | grep {INTERFACE}",
+    "alternative_solution": "Edit /etc/NetworkManager/NetworkManager.conf to add [ifupdown] managed=true"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Could not activate connection: Connection activation failed",
+    "context": "NetworkManager cannot activate a connection.",
+    "solution_explanation": "Connection profile is corrupted or has invalid settings.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "list",
+        "command": "nmcli connection show",
+        "description": "List all connections"
+      },
+      {
+        "step": 2,
+        "action": "verify",
+        "command": "nmcli connection show {CONNECTION_NAME}",
+        "description": "Show connection details",
+        "placeholder": "{CONNECTION_NAME}"
+      },
+      {
+        "step": 3,
+        "action": "delete",
+        "command": "sudo nmcli connection delete {CONNECTION_NAME}",
+        "description": "Delete corrupted connection",
+        "placeholder": "{CONNECTION_NAME}",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "recreate",
+        "command": "sudo nmcli device wifi connect {SSID} password {PASSWORD}",
+        "description": "Recreate WiFi connection",
+        "placeholder": "{SSID},{PASSWORD}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nmcli connection show --active | grep {CONNECTION_NAME}",
+    "alternative_solution": "Edit connection file in /etc/NetworkManager/system-connections/"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Secrets were required, but not provided",
+    "context": "WiFi password not stored or incorrect.",
+    "solution_explanation": "WiFi credentials are missing or invalid. Re-enter password.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "nmcli connection show {CONNECTION_NAME}",
+        "description": "Check connection settings",
+        "placeholder": "{CONNECTION_NAME}"
+      },
+      {
+        "step": 2,
+        "action": "update_password",
+        "command": "sudo nmcli connection modify {CONNECTION_NAME} wifi-sec.psk {PASSWORD}",
+        "description": "Update WiFi password",
+        "placeholder": "{CONNECTION_NAME},{PASSWORD}"
+      },
+      {
+        "step": 3,
+        "action": "activate",
+        "command": "nmcli connection up {CONNECTION_NAME}",
+        "description": "Activate connection",
+        "placeholder": "{CONNECTION_NAME}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nmcli connection show --active | grep {CONNECTION_NAME}",
+    "alternative_solution": "Delete and recreate connection with correct password"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "DHCPDISCOVER on {INTERFACE} to 255.255.255.255 port 67 interval",
+    "context": "No DHCP server responding.",
+    "solution_explanation": "DHCP server is unreachable. Check network cable or use static IP.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo dhclient -v {INTERFACE}",
+        "description": "Try DHCP with verbose output",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 2,
+        "action": "check_link",
+        "command": "ip link show {INTERFACE}",
+        "description": "Verify link is up",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 3,
+        "action": "restart_dhcp",
+        "command": "sudo dhclient -r {INTERFACE} && sudo dhclient {INTERFACE}",
+        "description": "Restart DHCP client",
+        "placeholder": "{INTERFACE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip addr show {INTERFACE} | grep 'inet '",
+    "alternative_solution": "Configure static IP: sudo ip addr add {IP}/{MASK} dev {INTERFACE}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Cannot find device {DEVICE}",
+    "context": "Network device/interface does not exist.",
+    "solution_explanation": "Interface name is incorrect or driver not loaded.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "list",
+        "command": "ip link show",
+        "description": "List all network interfaces"
+      },
+      {
+        "step": 2,
+        "action": "check_drivers",
+        "command": "lspci | grep -i network",
+        "description": "Check network hardware"
+      },
+      {
+        "step": 3,
+        "action": "check_modules",
+        "command": "lsmod | grep -i net",
+        "description": "Check loaded network modules"
+      },
+      {
+        "step": 4,
+        "action": "load_module",
+        "command": "sudo modprobe {DRIVER}",
+        "description": "Load network driver module",
+        "placeholder": "{DRIVER}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip link show {DEVICE}",
+    "alternative_solution": "Check dmesg for hardware detection: dmesg | grep -i network"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Error: Connection activation failed: (32) IP configuration could not be reserved",
+    "context": "IP address conflict or DHCP pool exhausted.",
+    "solution_explanation": "Requested IP is already in use. Release and request new IP.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "release",
+        "command": "sudo dhclient -r {INTERFACE}",
+        "description": "Release current IP",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 2,
+        "action": "request",
+        "command": "sudo dhclient {INTERFACE}",
+        "description": "Request new IP"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "ip addr show {INTERFACE}",
+        "description": "Check assigned IP",
+        "placeholder": "{INTERFACE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip addr show {INTERFACE} | grep 'inet '",
+    "alternative_solution": "nmcli connection down {CONNECTION} && nmcli connection up {CONNECTION}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Error: Failed to add/activate new connection: Unknown error",
+    "context": "Generic NetworkManager error.",
+    "solution_explanation": "NetworkManager is in an inconsistent state. Restart service.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_logs",
+        "command": "sudo journalctl -u NetworkManager -n 100 --no-pager | tail -20",
+        "description": "Check recent NetworkManager logs"
+      },
+      {
+        "step": 2,
+        "action": "restart",
+        "command": "sudo systemctl restart NetworkManager",
+        "description": "Restart NetworkManager"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "sudo systemctl status NetworkManager",
+        "description": "Verify service is running"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active NetworkManager",
+    "alternative_solution": "sudo rm /var/lib/NetworkManager/* && sudo systemctl restart NetworkManager"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "ping: sendmsg: Operation not permitted",
+    "context": "Firewall is blocking ICMP packets.",
+    "solution_explanation": "iptables or ufw is blocking outgoing ping. Check firewall rules.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_ufw",
+        "command": "sudo ufw status verbose",
+        "description": "Check UFW firewall status"
+      },
+      {
+        "step": 2,
+        "action": "check_iptables",
+        "command": "sudo iptables -L -n -v | grep ICMP",
+        "description": "Check iptables ICMP rules"
+      },
+      {
+        "step": 3,
+        "action": "allow_icmp",
+        "command": "sudo ufw allow out to any proto icmp",
+        "description": "Allow outgoing ICMP"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ping -c 1 8.8.8.8",
+    "alternative_solution": "sudo iptables -A OUTPUT -p icmp -j ACCEPT"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Cannot assign requested address",
+    "context": "Trying to bind to an IP that's not configured on the interface.",
+    "solution_explanation": "IP address is not assigned to any interface. Assign it first.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ip addr show",
+        "description": "List all IP addresses"
+      },
+      {
+        "step": 2,
+        "action": "add_ip",
+        "command": "sudo ip addr add {IP}/{MASK} dev {INTERFACE}",
+        "description": "Add IP address to interface",
+        "placeholder": "{IP},{MASK},{INTERFACE}"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "ip addr show {INTERFACE}",
+        "description": "Verify IP is assigned",
+        "placeholder": "{INTERFACE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip addr show | grep {IP}",
+    "alternative_solution": "Configure IP in netplan or NetworkManager"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Destination Host Unreachable",
+    "context": "Cannot reach destination host.",
+    "solution_explanation": "Host is down or network path is broken. Verify routing and connectivity.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ping -c 3 {HOST}",
+        "description": "Test connectivity",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 2,
+        "action": "check_route",
+        "command": "ip route get {HOST}",
+        "description": "Check route to host",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 3,
+        "action": "test_gateway",
+        "command": "ping -c 2 $(ip route | grep default | awk '{print $3}')",
+        "description": "Test default gateway"
+      },
+      {
+        "step": 4,
+        "action": "arp_check",
+        "command": "ip neigh show",
+        "description": "Check ARP table"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ping -c 1 {HOST}",
+    "alternative_solution": "traceroute {HOST} to identify where packets are dropped"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "wpa_supplicant: Failed to initialize control interface",
+    "context": "WiFi authentication daemon cannot start.",
+    "solution_explanation": "wpa_supplicant control interface error. Restart service.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_status",
+        "command": "sudo systemctl status wpa_supplicant",
+        "description": "Check wpa_supplicant status"
+      },
+      {
+        "step": 2,
+        "action": "check_socket",
+        "command": "ls -la /run/wpa_supplicant/",
+        "description": "Check control socket"
+      },
+      {
+        "step": 3,
+        "action": "cleanup",
+        "command": "sudo rm -rf /run/wpa_supplicant/*",
+        "description": "Remove stale sockets"
+      },
+      {
+        "step": 4,
+        "action": "restart",
+        "command": "sudo systemctl restart wpa_supplicant",
+        "description": "Restart wpa_supplicant"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active wpa_supplicant",
+    "alternative_solution": "sudo systemctl restart NetworkManager"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "curl: (6) Could not resolve host",
+    "context": "DNS resolution failure for specific host.",
+    "solution_explanation": "DNS server cannot resolve the hostname. Check DNS configuration.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "test_dns",
+        "command": "nslookup {HOST}",
+        "description": "Test DNS resolution",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 2,
+        "action": "check_dns_servers",
+        "command": "cat /etc/resolv.conf",
+        "description": "Check DNS server configuration"
+      },
+      {
+        "step": 3,
+        "action": "test_alternate",
+        "command": "nslookup {HOST} 8.8.8.8",
+        "description": "Test with Google DNS",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 4,
+        "action": "flush_cache",
+        "command": "sudo systemd-resolve --flush-caches",
+        "description": "Flush DNS cache"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nslookup {HOST}",
+    "alternative_solution": "Add to /etc/hosts: {IP} {HOST}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "ssh: connect to host {HOST} port 22: Connection timed out",
+    "context": "SSH connection timeout.",
+    "solution_explanation": "SSH port is blocked or host is unreachable. Check connectivity and firewall.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "test_connectivity",
+        "command": "ping -c 3 {HOST}",
+        "description": "Test basic connectivity",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 2,
+        "action": "test_port",
+        "command": "nc -zv {HOST} 22",
+        "description": "Test SSH port",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 3,
+        "action": "check_firewall",
+        "command": "sudo ufw status",
+        "description": "Check local firewall"
+      },
+      {
+        "step": 4,
+        "action": "traceroute",
+        "command": "traceroute -T -p 22 {HOST}",
+        "description": "Trace route to SSH port",
+        "placeholder": "{HOST}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nc -zv {HOST} 22",
+    "alternative_solution": "Try alternate port: ssh -p {PORT} {HOST}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Network Manager is not running",
+    "context": "NetworkManager service is not active.",
+    "solution_explanation": "NetworkManager service is stopped. Start it.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo systemctl status NetworkManager",
+        "description": "Check service status"
+      },
+      {
+        "step": 2,
+        "action": "start",
+        "command": "sudo systemctl start NetworkManager",
+        "description": "Start NetworkManager"
+      },
+      {
+        "step": 3,
+        "action": "enable",
+        "command": "sudo systemctl enable NetworkManager",
+        "description": "Enable on boot"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active NetworkManager",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Error: No suitable device found: no device found for connection",
+    "context": "NetworkManager cannot find interface for connection.",
+    "solution_explanation": "Interface name in connection doesn't match available interfaces.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "list_devices",
+        "command": "nmcli device status",
+        "description": "List available devices"
+      },
+      {
+        "step": 2,
+        "action": "show_connection",
+        "command": "nmcli connection show {CONNECTION}",
+        "description": "Show connection details",
+        "placeholder": "{CONNECTION}"
+      },
+      {
+        "step": 3,
+        "action": "modify",
+        "command": "nmcli connection modify {CONNECTION} connection.interface-name {INTERFACE}",
+        "description": "Update interface name",
+        "placeholder": "{CONNECTION},{INTERFACE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nmcli connection up {CONNECTION}",
+    "alternative_solution": "Delete and recreate connection with correct interface"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Error in network definition: unknown key 'macaddress'",
+    "context": "Invalid netplan configuration syntax.",
+    "solution_explanation": "netplan YAML syntax error. Fix configuration file.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo netplan --debug generate",
+        "description": "Check netplan syntax"
+      },
+      {
+        "step": 2,
+        "action": "backup",
+        "command": "sudo cp /etc/netplan/*.yaml /etc/netplan/backup.yaml",
+        "description": "Backup configuration"
+      },
+      {
+        "step": 3,
+        "action": "edit",
+        "command": "echo 'Fix: change macaddress to match: {macaddress: XX:XX:XX:XX:XX:XX}'",
+        "description": "Syntax hint for macaddress"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "sudo netplan --debug generate",
+    "alternative_solution": "sudo nano /etc/netplan/*.yaml and fix YAML syntax"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "iptables: No chain/target/match by that name",
+    "context": "Referenced iptables chain doesn't exist.",
+    "solution_explanation": "Firewall rule references non-existent chain. Create chain or fix rule.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "list",
+        "command": "sudo iptables -L -n",
+        "description": "List all chains"
+      },
+      {
+        "step": 2,
+        "action": "verify",
+        "command": "sudo iptables -L {CHAIN} -n",
+        "description": "Check if chain exists",
+        "placeholder": "{CHAIN}"
+      },
+      {
+        "step": 3,
+        "action": "create",
+        "command": "sudo iptables -N {CHAIN}",
+        "description": "Create new chain",
+        "placeholder": "{CHAIN}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "sudo iptables -L {CHAIN}",
+    "alternative_solution": "Use correct chain name (INPUT, FORWARD, OUTPUT)"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "systemd-resolved: Server returned error NXDOMAIN",
+    "context": "Domain does not exist in DNS.",
+    "solution_explanation": "Domain name is incorrect or not registered. Verify domain name.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "nslookup {DOMAIN}",
+        "description": "Test domain resolution",
+        "placeholder": "{DOMAIN}"
+      },
+      {
+        "step": 2,
+        "action": "check_typo",
+        "command": "echo 'Verify domain spelling: {DOMAIN}'",
+        "description": "Check for typos",
+        "placeholder": "{DOMAIN}"
+      },
+      {
+        "step": 3,
+        "action": "whois",
+        "command": "whois {DOMAIN}",
+        "description": "Check domain registration",
+        "placeholder": "{DOMAIN}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "nslookup {DOMAIN}",
+    "alternative_solution": "Verify correct domain name with service provider"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Error: Connection '{CONNECTION}' is not available on device {DEVICE}",
+    "context": "Connection type doesn't match device type.",
+    "solution_explanation": "WiFi connection on ethernet device or vice versa. Use correct connection type.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify_device",
+        "command": "nmcli device status | grep {DEVICE}",
+        "description": "Check device type",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 2,
+        "action": "verify_connection",
+        "command": "nmcli connection show {CONNECTION} | grep connection.type",
+        "description": "Check connection type",
+        "placeholder": "{CONNECTION}"
+      },
+      {
+        "step": 3,
+        "action": "list_compatible",
+        "command": "nmcli connection show | grep {DEVICE}",
+        "description": "List compatible connections",
+        "placeholder": "{DEVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Create new connection matching device type"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "bind: Address already in use",
+    "context": "Port is already bound by another process.",
+    "solution_explanation": "Another service is using the port. Identify and stop it.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "identify",
+        "command": "sudo ss -tlnp | grep :{PORT}",
+        "description": "Find process using port",
+        "placeholder": "{PORT}"
+      },
+      {
+        "step": 2,
+        "action": "verify",
+        "command": "sudo lsof -i :{PORT}",
+        "description": "Verify process details",
+        "placeholder": "{PORT}"
+      },
+      {
+        "step": 3,
+        "action": "stop",
+        "command": "sudo systemctl stop {SERVICE}",
+        "description": "Stop conflicting service",
+        "placeholder": "{SERVICE}",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "sudo ss -tlnp | grep :{PORT}",
+    "alternative_solution": "Kill process: sudo kill -9 {PID}"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "UFW: Problem running",
+    "context": "UFW firewall command failed.",
+    "solution_explanation": "UFW is not properly initialized or has conflicts. Reset UFW.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "sudo ufw status",
+        "description": "Check UFW status"
+      },
+      {
+        "step": 2,
+        "action": "check_iptables",
+        "command": "sudo iptables -L -n",
+        "description": "Check underlying iptables"
+      },
+      {
+        "step": 3,
+        "action": "reset",
+        "command": "sudo ufw --force reset",
+        "description": "Reset UFW to defaults",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "enable",
+        "command": "sudo ufw enable",
+        "description": "Re-enable UFW"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "sudo ufw status",
+    "alternative_solution": "sudo apt-get install --reinstall ufw"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "route: netmask doesn't match route address",
+    "context": "Invalid route configuration with mismatched netmask.",
+    "solution_explanation": "Network address and netmask are incompatible. Fix route syntax.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ip route show",
+        "description": "Show current routes"
+      },
+      {
+        "step": 2,
+        "action": "calculate",
+        "command": "ipcalc {NETWORK}/{MASK}",
+        "description": "Calculate correct network address",
+        "placeholder": "{NETWORK},{MASK}"
+      },
+      {
+        "step": 3,
+        "action": "fix",
+        "command": "sudo ip route add {CORRECT_NETWORK}/{MASK} via {GATEWAY}",
+        "description": "Add route with correct network",
+        "placeholder": "{CORRECT_NETWORK},{MASK},{GATEWAY}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip route show | grep {NETWORK}",
+    "alternative_solution": "Use CIDR notation for clarity"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "Failed to bring up {INTERFACE}",
+    "context": "Cannot bring network interface online.",
+    "solution_explanation": "Driver issue or hardware problem. Check interface and drivers.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ip link show {INTERFACE}",
+        "description": "Check interface state",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 2,
+        "action": "check_driver",
+        "command": "dmesg | grep -i {INTERFACE}",
+        "description": "Check kernel messages",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 3,
+        "action": "reload",
+        "command": "sudo ip link set {INTERFACE} down && sudo ip link set {INTERFACE} up",
+        "description": "Reload interface",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 4,
+        "action": "check_module",
+        "command": "lsmod | grep $(basename $(readlink /sys/class/net/{INTERFACE}/device/driver/module))",
+        "description": "Check loaded driver module",
+        "placeholder": "{INTERFACE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip link show {INTERFACE} | grep 'state UP'",
+    "alternative_solution": "Reboot system or reload network driver module"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "MAC address collision",
+    "context": "Duplicate MAC addresses on network.",
+    "solution_explanation": "Two devices have the same MAC address. Change MAC or investigate.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ip link show {INTERFACE}",
+        "description": "Check current MAC address",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 2,
+        "action": "check_arp",
+        "command": "ip neigh show | grep {MAC}",
+        "description": "Check for duplicates in ARP table",
+        "placeholder": "{MAC}"
+      },
+      {
+        "step": 3,
+        "action": "change_mac",
+        "command": "sudo ip link set {INTERFACE} down && sudo ip link set {INTERFACE} address {NEW_MAC} && sudo ip link set {INTERFACE} up",
+        "description": "Change MAC address",
+        "placeholder": "{INTERFACE},{NEW_MAC}",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip link show {INTERFACE} | grep {NEW_MAC}",
+    "alternative_solution": "Configure permanent MAC in netplan or NetworkManager"
+  },
+  {
+    "category": "Network",
+    "error_trigger": "IPv6: ADDRCONF(NETDEV_UP): {INTERFACE}: link is not ready",
+    "context": "IPv6 configuration waiting for link.",
+    "solution_explanation": "Interface is coming up but link is not established yet. Wait or check cable.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_link",
+        "command": "ethtool {INTERFACE} | grep 'Link detected'",
+        "description": "Check physical link status",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "command": "sleep 5 && ip link show {INTERFACE}",
+        "description": "Wait for link negotiation",
+        "placeholder": "{INTERFACE}"
+      },
+      {
+        "step": 3,
+        "action": "restart",
+        "command": "sudo ip link set {INTERFACE} down && sudo ip link set {INTERFACE} up",
+        "description": "Restart interface",
+        "placeholder": "{INTERFACE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ip link show {INTERFACE} | grep 'state UP'",
+    "alternative_solution": "Check physical network cable connection"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to start {SERVICE}.service: Unit {SERVICE}.service not found",
+    "context": "Service unit file does not exist.",
+    "solution_explanation": "Service is not installed or unit file is missing. Install package or check service name.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "systemctl list-unit-files | grep {SERVICE}",
+        "description": "Search for similar service names",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_package",
+        "command": "dpkg -l | grep {SERVICE}",
+        "description": "Check if package is installed",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "search",
+        "command": "apt-cache search {SERVICE}",
+        "description": "Search for service package",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl list-unit-files | grep {SERVICE}",
+    "alternative_solution": "Install service: sudo apt-get install {SERVICE}"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Job for {SERVICE}.service failed because the control process exited with error code",
+    "context": "Service failed to start with error code.",
+    "solution_explanation": "Service startup script returned an error. Check logs for details.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_status",
+        "command": "sudo systemctl status {SERVICE}",
+        "description": "Check service status and error",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_logs",
+        "command": "sudo journalctl -u {SERVICE} -n 50 --no-pager",
+        "description": "View recent service logs",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "check_config",
+        "command": "sudo {SERVICE} -t",
+        "description": "Test service configuration",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Check /var/log/syslog for additional error details"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Start request repeated too quickly",
+    "context": "Service is crash-looping.",
+    "solution_explanation": "Service fails immediately after start. Fix configuration or dependencies.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "reset_failed",
+        "command": "sudo systemctl reset-failed {SERVICE}",
+        "description": "Reset failed state",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_logs",
+        "command": "sudo journalctl -u {SERVICE} --since '5 minutes ago' --no-pager",
+        "description": "Check recent crash logs",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "check_config",
+        "command": "systemctl cat {SERVICE}",
+        "description": "View service unit file",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 4,
+        "action": "start",
+        "command": "sudo systemctl start {SERVICE}",
+        "description": "Try starting after fixes",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Increase restart limits in unit file: RestartSec=10"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to start {SERVICE}.service: Unit {SERVICE}.service is masked",
+    "context": "Service is masked and cannot be started.",
+    "solution_explanation": "Service was manually masked. Unmask it to enable.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "systemctl status {SERVICE}",
+        "description": "Verify service is masked",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "unmask",
+        "command": "sudo systemctl unmask {SERVICE}",
+        "description": "Unmask the service",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "start",
+        "command": "sudo systemctl start {SERVICE}",
+        "description": "Start the service",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Enable service: sudo systemctl enable {SERVICE}"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Main process exited, code=exited, status=1/FAILURE",
+    "context": "Service process exited with failure status.",
+    "solution_explanation": "Service encountered an error during execution. Check logs and configuration.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_logs",
+        "command": "sudo journalctl -u {SERVICE} -n 100 --no-pager | tail -30",
+        "description": "Check detailed error logs",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_permissions",
+        "command": "systemctl cat {SERVICE} | grep User",
+        "description": "Check which user runs service",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "test_manual",
+        "command": "sudo -u {USER} {EXEC_START}",
+        "description": "Test service command manually",
+        "placeholder": "{USER},{EXEC_START}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Check service configuration file for errors"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to reload {SERVICE}.service: Unit {SERVICE}.service is not loaded",
+    "context": "Cannot reload a service that isn't loaded.",
+    "solution_explanation": "Service must be started before it can be reloaded. Start it first.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "systemctl status {SERVICE}",
+        "description": "Check service state",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "start",
+        "command": "sudo systemctl start {SERVICE}",
+        "description": "Start the service",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "reload",
+        "command": "sudo systemctl reload {SERVICE}",
+        "description": "Now reload the service",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Use restart instead: sudo systemctl restart {SERVICE}"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed with result 'timeout'",
+    "context": "Service startup took too long and timed out.",
+    "solution_explanation": "Service exceeded startup timeout. Increase timeout or fix slow startup.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_timeout",
+        "command": "systemctl show {SERVICE} | grep Timeout",
+        "description": "Check current timeout settings",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_logs",
+        "command": "sudo journalctl -u {SERVICE} -n 50 --no-pager",
+        "description": "Check what's causing delay",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "increase_timeout",
+        "command": "sudo mkdir -p /etc/systemd/system/{SERVICE}.service.d && echo '[Service]\\nTimeoutStartSec=300' | sudo tee /etc/systemd/system/{SERVICE}.service.d/timeout.conf",
+        "description": "Increase timeout to 5 minutes",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 4,
+        "action": "reload",
+        "command": "sudo systemctl daemon-reload",
+        "description": "Reload systemd configuration"
+      },
+      {
+        "step": 5,
+        "action": "restart",
+        "command": "sudo systemctl restart {SERVICE}",
+        "description": "Restart with new timeout",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Fix slow startup dependencies"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to start {SERVICE}.service: Unit {SERVICE}.service has a bad unit file setting",
+    "context": "Syntax error in service unit file.",
+    "solution_explanation": "Unit file has invalid configuration. Fix syntax errors.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "systemctl cat {SERVICE}",
+        "description": "View unit file content",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_syntax",
+        "command": "sudo systemd-analyze verify {SERVICE}.service",
+        "description": "Validate unit file syntax",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "backup",
+        "command": "sudo cp /etc/systemd/system/{SERVICE}.service /etc/systemd/system/{SERVICE}.service.backup",
+        "description": "Backup current unit file",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "sudo systemd-analyze verify {SERVICE}.service",
+    "alternative_solution": "Edit unit file: sudo nano /etc/systemd/system/{SERVICE}.service"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed to locate executable {BINARY}",
+    "context": "Service executable file not found.",
+    "solution_explanation": "Binary path is incorrect or file doesn't exist. Fix path or install package.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "systemctl cat {SERVICE} | grep ExecStart",
+        "description": "Check configured executable path",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "search",
+        "command": "which {BINARY}",
+        "description": "Search for binary in PATH",
+        "placeholder": "{BINARY}"
+      },
+      {
+        "step": 3,
+        "action": "locate",
+        "command": "sudo find /usr -name {BINARY} -type f 2>/dev/null",
+        "description": "Find binary on system",
+        "placeholder": "{BINARY}"
+      },
+      {
+        "step": 4,
+        "action": "check_package",
+        "command": "dpkg -S {BINARY}",
+        "description": "Check which package provides binary",
+        "placeholder": "{BINARY}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -x {BINARY}",
+    "alternative_solution": "Install missing package or fix ExecStart path in unit file"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Control process exited, code=exited, status=203/EXEC",
+    "context": "Service cannot execute the specified command.",
+    "solution_explanation": "Permission issue or binary doesn't exist. Check permissions and paths.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_unit",
+        "command": "systemctl cat {SERVICE} | grep Exec",
+        "description": "View Exec directives",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_permissions",
+        "command": "ls -la {BINARY}",
+        "description": "Check binary permissions",
+        "placeholder": "{BINARY}"
+      },
+      {
+        "step": 3,
+        "action": "check_user",
+        "command": "systemctl cat {SERVICE} | grep User",
+        "description": "Check which user runs service",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 4,
+        "action": "fix_permissions",
+        "command": "sudo chmod +x {BINARY}",
+        "description": "Make binary executable",
+        "placeholder": "{BINARY}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -x {BINARY} && echo OK",
+    "alternative_solution": "Run command manually to test: sudo {BINARY}"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Dependency failed for {SERVICE}.service",
+    "context": "Required service dependency failed to start.",
+    "solution_explanation": "Service depends on another service that failed. Fix the dependency first.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_deps",
+        "command": "systemctl list-dependencies {SERVICE}",
+        "description": "List service dependencies",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "find_failed",
+        "command": "systemctl list-dependencies {SERVICE} --failed",
+        "description": "Find failed dependencies",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "check_dep",
+        "command": "systemctl status {DEPENDENCY}",
+        "description": "Check failed dependency status",
+        "placeholder": "{DEPENDENCY}"
+      },
+      {
+        "step": 4,
+        "action": "fix_dep",
+        "command": "sudo systemctl start {DEPENDENCY}",
+        "description": "Start failed dependency",
+        "placeholder": "{DEPENDENCY}"
+      },
+      {
+        "step": 5,
+        "action": "retry",
+        "command": "sudo systemctl start {SERVICE}",
+        "description": "Retry starting main service",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Remove dependency in unit file if not strictly required"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to enable unit: Unit file {SERVICE}.service does not exist",
+    "context": "Cannot enable a non-existent service.",
+    "solution_explanation": "Service unit file is not installed. Install service package.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "search",
+        "command": "apt-cache search {SERVICE}",
+        "description": "Search for service package",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_installed",
+        "command": "dpkg -l | grep {SERVICE}",
+        "description": "Check if package is installed",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "install",
+        "command": "sudo apt-get install {SERVICE}",
+        "description": "Install service package",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl list-unit-files | grep {SERVICE}",
+    "alternative_solution": "Create custom unit file in /etc/systemd/system/"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed to read PID from file /run/{SERVICE}.pid: Invalid argument",
+    "context": "PID file is corrupted or contains invalid data.",
+    "solution_explanation": "Remove stale PID file and restart service.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_pid",
+        "command": "cat /run/{SERVICE}.pid",
+        "description": "Check PID file content",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_process",
+        "command": "ps -p $(cat /run/{SERVICE}.pid 2>/dev/null) || echo 'Process not running'",
+        "description": "Verify if process is running",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "remove_pid",
+        "command": "sudo rm -f /run/{SERVICE}.pid",
+        "description": "Remove stale PID file",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 4,
+        "action": "restart",
+        "command": "sudo systemctl restart {SERVICE}",
+        "description": "Restart service",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Change PIDFile type in unit file to 'forking' or remove PIDFile directive"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed to create cgroup: Permission denied",
+    "context": "Cannot create control group for service.",
+    "solution_explanation": "cgroup permission issue. Usually requires system restart or cgroup remount.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_cgroup",
+        "command": "mount | grep cgroup",
+        "description": "Check cgroup mounts"
+      },
+      {
+        "step": 2,
+        "action": "check_permissions",
+        "command": "ls -la /sys/fs/cgroup/",
+        "description": "Check cgroup permissions"
+      },
+      {
+        "step": 3,
+        "action": "daemon_reexec",
+        "command": "sudo systemctl daemon-reexec",
+        "description": "Re-execute systemd"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Reboot system to reset cgroup hierarchy"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Warning: {SERVICE}.service changed on disk. Run 'systemctl daemon-reload' to reload units",
+    "context": "Unit file was modified but systemd hasn't reloaded it.",
+    "solution_explanation": "Reload systemd configuration to pick up changes.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "reload",
+        "command": "sudo systemctl daemon-reload",
+        "description": "Reload systemd manager configuration"
+      },
+      {
+        "step": 2,
+        "action": "verify",
+        "command": "systemctl status {SERVICE}",
+        "description": "Verify changes are loaded",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl status {SERVICE} 2>&1 | grep -v 'changed on disk'",
+    "alternative_solution": ""
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Unit cannot be reloaded because it is inactive",
+    "context": "Cannot reload an inactive service.",
+    "solution_explanation": "Service must be running to reload. Use restart instead.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "systemctl is-active {SERVICE}",
+        "description": "Verify service is inactive",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "start",
+        "command": "sudo systemctl start {SERVICE}",
+        "description": "Start service first",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Use restart: sudo systemctl restart {SERVICE}"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to kill unit {SERVICE}.service: Unit {SERVICE}.service not loaded",
+    "context": "Cannot stop a service that isn't loaded.",
+    "solution_explanation": "Service is already stopped or doesn't exist.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "systemctl status {SERVICE}",
+        "description": "Check service status",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_process",
+        "command": "ps aux | grep {SERVICE} | grep -v grep",
+        "description": "Check for running processes",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Service is already stopped"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Got notification message from PID {PID}, but reception only permitted for main PID {MAIN_PID}",
+    "context": "Wrong process is sending notifications to systemd.",
+    "solution_explanation": "Notification type mismatch. Check service Type= setting.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_type",
+        "command": "systemctl cat {SERVICE} | grep Type=",
+        "description": "Check service type",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_notify",
+        "command": "systemctl cat {SERVICE} | grep NotifyAccess",
+        "description": "Check notification settings",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Change Type=notify to Type=forking or Type=simple in unit file"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to allocate manager object: Cannot allocate memory",
+    "context": "System out of memory for systemd operations.",
+    "solution_explanation": "Critical memory shortage. Free memory immediately.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_memory",
+        "command": "free -h",
+        "description": "Check memory usage"
+      },
+      {
+        "step": 2,
+        "action": "check_processes",
+        "command": "ps aux --sort=-%mem | head -n 10",
+        "description": "Find memory-hungry processes"
+      },
+      {
+        "step": 3,
+        "action": "clear_cache",
+        "command": "sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches",
+        "description": "Clear filesystem caches"
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "free -h | awk '/Mem:/ {if ($4 > 100) print \"OK\"}'",
+    "alternative_solution": "Kill memory-intensive processes or reboot"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Killing process {PID} (SIGTERM) with signal SIGKILL",
+    "context": "Service did not stop gracefully and was force-killed.",
+    "solution_explanation": "Service ignores SIGTERM. Increase stop timeout or fix service shutdown.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_timeout",
+        "command": "systemctl show {SERVICE} | grep TimeoutStopSec",
+        "description": "Check stop timeout",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "increase",
+        "command": "sudo mkdir -p /etc/systemd/system/{SERVICE}.service.d && echo '[Service]\\nTimeoutStopSec=60' | sudo tee /etc/systemd/system/{SERVICE}.service.d/timeout.conf",
+        "description": "Increase stop timeout",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "reload",
+        "command": "sudo systemctl daemon-reload",
+        "description": "Reload systemd"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl show {SERVICE} | grep TimeoutStopSec=60",
+    "alternative_solution": "Fix application to handle SIGTERM properly"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to add /run/systemd/ask-password to directory watch: Too many open files",
+    "context": "System inotify limits reached.",
+    "solution_explanation": "Too many file watches. Increase inotify limits.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_limits",
+        "command": "cat /proc/sys/fs/inotify/max_user_watches",
+        "description": "Check current limit"
+      },
+      {
+        "step": 2,
+        "action": "increase",
+        "command": "echo 'fs.inotify.max_user_watches=524288' | sudo tee -a /etc/sysctl.conf",
+        "description": "Increase watch limit"
+      },
+      {
+        "step": 3,
+        "action": "apply",
+        "command": "sudo sysctl -p",
+        "description": "Apply changes"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "cat /proc/sys/fs/inotify/max_user_watches",
+    "alternative_solution": "Find and stop processes with too many watches: lsof | grep inotify"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed at step CHDIR spawning {BINARY}: No such file or directory",
+    "context": "Service working directory doesn't exist.",
+    "solution_explanation": "WorkingDirectory path is invalid. Create directory or fix path.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_unit",
+        "command": "systemctl cat {SERVICE} | grep WorkingDirectory",
+        "description": "Check configured working directory",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "create",
+        "command": "sudo mkdir -p {WORKING_DIR}",
+        "description": "Create working directory",
+        "placeholder": "{WORKING_DIR}"
+      },
+      {
+        "step": 3,
+        "action": "permissions",
+        "command": "sudo chown {USER}:{GROUP} {WORKING_DIR}",
+        "description": "Set proper ownership",
+        "placeholder": "{USER},{GROUP},{WORKING_DIR}"
+      },
+      {
+        "step": 4,
+        "action": "restart",
+        "command": "sudo systemctl restart {SERVICE}",
+        "description": "Restart service",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -d {WORKING_DIR} && echo OK",
+    "alternative_solution": "Remove WorkingDirectory directive from unit file"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed at step USER spawning {BINARY}: No such process",
+    "context": "User specified in service doesn't exist.",
+    "solution_explanation": "Service configured to run as non-existent user. Create user or fix config.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_user",
+        "command": "systemctl cat {SERVICE} | grep User=",
+        "description": "Check configured user",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "verify_exists",
+        "command": "id {USER}",
+        "description": "Verify user exists",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 3,
+        "action": "create_user",
+        "command": "sudo useradd -r -s /bin/false {USER}",
+        "description": "Create system user",
+        "placeholder": "{USER}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "id {USER}",
+    "alternative_solution": "Change User= to existing user in unit file"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed at step GROUP spawning {BINARY}: No such process",
+    "context": "Group specified in service doesn't exist.",
+    "solution_explanation": "Service configured to run as non-existent group. Create group or fix config.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_group",
+        "command": "systemctl cat {SERVICE} | grep Group=",
+        "description": "Check configured group",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "verify_exists",
+        "command": "getent group {GROUP}",
+        "description": "Verify group exists",
+        "placeholder": "{GROUP}"
+      },
+      {
+        "step": 3,
+        "action": "create_group",
+        "command": "sudo groupadd -r {GROUP}",
+        "description": "Create system group",
+        "placeholder": "{GROUP}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "getent group {GROUP}",
+    "alternative_solution": "Change Group= to existing group in unit file"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "systemd-journald.service: Failed to open runtime journal: Too many open files",
+    "context": "Journal daemon hit file descriptor limit.",
+    "solution_explanation": "Increase systemd file descriptor limits.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_limits",
+        "command": "systemctl show systemd-journald | grep LimitNOFILE",
+        "description": "Check current limits"
+      },
+      {
+        "step": 2,
+        "action": "increase",
+        "command": "sudo mkdir -p /etc/systemd/system/systemd-journald.service.d && echo '[Service]\\nLimitNOFILE=65536' | sudo tee /etc/systemd/system/systemd-journald.service.d/limits.conf",
+        "description": "Increase file limit"
+      },
+      {
+        "step": 3,
+        "action": "reload",
+        "command": "sudo systemctl daemon-reload",
+        "description": "Reload systemd"
+      },
+      {
+        "step": 4,
+        "action": "restart",
+        "command": "sudo systemctl restart systemd-journald",
+        "description": "Restart journal"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active systemd-journald",
+    "alternative_solution": "Clean old logs: sudo journalctl --vacuum-time=3d"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "systemd[1]: Failed to load SELinux policy",
+    "context": "SELinux policy loading failed (rare on Ubuntu).",
+    "solution_explanation": "SELinux issue. Ubuntu typically uses AppArmor instead.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_selinux",
+        "command": "getenforce 2>/dev/null || echo 'SELinux not enabled'",
+        "description": "Check SELinux status"
+      },
+      {
+        "step": 2,
+        "action": "check_apparmor",
+        "command": "sudo aa-status",
+        "description": "Check AppArmor status"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "This is expected on Ubuntu - use AppArmor instead"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed to run 'start' task: No such file or directory",
+    "context": "ExecStart command not found.",
+    "solution_explanation": "Command path is wrong or binary doesn't exist.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_exec",
+        "command": "systemctl cat {SERVICE} | grep ExecStart=",
+        "description": "Check ExecStart command",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "verify",
+        "command": "which {BINARY} || find /usr -name {BINARY} 2>/dev/null",
+        "description": "Find binary location",
+        "placeholder": "{BINARY}"
+      },
+      {
+        "step": 3,
+        "action": "check_package",
+        "command": "dpkg -L {PACKAGE} | grep bin",
+        "description": "List binaries from package",
+        "placeholder": "{PACKAGE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -f {BINARY}",
+    "alternative_solution": "Install package or fix ExecStart path"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Unit {SERVICE}.service is bound to inactive unit",
+    "context": "Service is bound to an inactive dependency.",
+    "solution_explanation": "Bound dependency must be active. Start the dependency.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_binds",
+        "command": "systemctl cat {SERVICE} | grep 'BindsTo\\|Requires'",
+        "description": "Check binding dependencies",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_deps",
+        "command": "systemctl list-dependencies {SERVICE} --all",
+        "description": "List all dependencies",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "start_dep",
+        "command": "sudo systemctl start {DEPENDENCY}",
+        "description": "Start bound dependency",
+        "placeholder": "{DEPENDENCY}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Change BindsTo to Wants in unit file for softer dependency"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "systemd-logind.service: Failed to attach to console: Operation not permitted",
+    "context": "Login manager cannot attach to console.",
+    "solution_explanation": "Permission issue with console access. Usually requires reboot.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_status",
+        "command": "systemctl status systemd-logind",
+        "description": "Check login manager status"
+      },
+      {
+        "step": 2,
+        "action": "check_console",
+        "command": "ls -la /dev/console",
+        "description": "Check console device"
+      },
+      {
+        "step": 3,
+        "action": "restart",
+        "command": "sudo systemctl restart systemd-logind",
+        "description": "Try restarting service"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "systemctl is-active systemd-logind",
+    "alternative_solution": "Reboot system to reset console state"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Service has no ExecStart, ExecStop, or SuccessAction. Refusing",
+    "context": "Service unit file has no action defined.",
+    "solution_explanation": "Unit file must have at least one action. Add ExecStart.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "view",
+        "command": "systemctl cat {SERVICE}",
+        "description": "View unit file",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "backup",
+        "command": "sudo cp /etc/systemd/system/{SERVICE}.service /etc/systemd/system/{SERVICE}.service.backup",
+        "description": "Backup unit file",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "systemctl cat {SERVICE} | grep ExecStart",
+    "alternative_solution": "Edit unit file and add: ExecStart=/path/to/command"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Too many nofile resources exhausted",
+    "context": "System-wide file descriptor limit reached.",
+    "solution_explanation": "Increase system file descriptor limits.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_current",
+        "command": "ulimit -n",
+        "description": "Check current user limit"
+      },
+      {
+        "step": 2,
+        "action": "check_system",
+        "command": "cat /proc/sys/fs/file-max",
+        "description": "Check system limit"
+      },
+      {
+        "step": 3,
+        "action": "increase",
+        "command": "echo 'fs.file-max = 2097152' | sudo tee -a /etc/sysctl.conf",
+        "description": "Increase system limit"
+      },
+      {
+        "step": 4,
+        "action": "apply",
+        "command": "sudo sysctl -p",
+        "description": "Apply changes"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "cat /proc/sys/fs/file-max",
+    "alternative_solution": "Add limits in /etc/security/limits.conf"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "{SERVICE}.service: Failed to set up mount namespacing: Permission denied",
+    "context": "Service cannot create mount namespace (unprivileged).",
+    "solution_explanation": "Remove PrivateTmp or mount options if not needed.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "systemctl cat {SERVICE} | grep -E 'PrivateTmp|ProtectHome|ProtectSystem'",
+        "description": "Check namespace settings",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "disable",
+        "command": "sudo mkdir -p /etc/systemd/system/{SERVICE}.service.d && echo '[Service]\\nPrivateTmp=no' | sudo tee /etc/systemd/system/{SERVICE}.service.d/namespace.conf",
+        "description": "Disable private tmp",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "reload",
+        "command": "sudo systemctl daemon-reload",
+        "description": "Reload configuration"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Run service with elevated privileges if isolation is required"
+  },
+  {
+    "category": "Systemd Services",
+    "error_trigger": "Failed to start {SERVICE}.service: Transaction for {SERVICE}.service is destructive",
+    "context": "Starting service would stop critical services.",
+    "solution_explanation": "Service conflicts with running services. Review conflicts.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_conflicts",
+        "command": "systemctl cat {SERVICE} | grep Conflicts",
+        "description": "Check conflict declarations",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 2,
+        "action": "list_conflicts",
+        "command": "systemctl show {SERVICE} | grep Conflicts",
+        "description": "List conflicting services",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "review",
+        "command": "echo 'Review if conflicts are intentional and necessary'",
+        "description": "Manual review needed"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Remove Conflicts= directive if not needed"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "No space left on device",
+    "context": "Disk is full, cannot write files.",
+    "solution_explanation": "Free up disk space by removing unnecessary files and cleaning caches.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_usage",
+        "command": "df -h",
+        "description": "Check disk usage across all filesystems"
+      },
+      {
+        "step": 2,
+        "action": "find_large",
+        "command": "sudo du -h / --max-depth=1 2>/dev/null | sort -hr | head -10",
+        "description": "Find largest directories"
+      },
+      {
+        "step": 3,
+        "action": "clean_apt",
+        "command": "sudo apt-get clean && sudo apt-get autoremove -y",
+        "description": "Clean package cache"
+      },
+      {
+        "step": 4,
+        "action": "clean_journal",
+        "command": "sudo journalctl --vacuum-time=3d",
+        "description": "Clean old system logs"
+      },
+      {
+        "step": 5,
+        "action": "clean_tmp",
+        "command": "find /tmp -type f -atime +7 -user $(whoami) -delete 2>/dev/null || true",
+        "description": "Clean old temporary files (7+ days, user-owned only)"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "df -h / | awk 'NR==2 {if ($5+0 < 90) print \"OK\"}'",
+    "alternative_solution": "Find and remove large files: sudo find / -type f -size +100M -exec ls -lh {} \\;"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "mount: wrong fs type, bad option, bad superblock",
+    "context": "Cannot mount filesystem.",
+    "solution_explanation": "Filesystem type mismatch or corruption. Verify filesystem and mount options.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "identify",
+        "command": "sudo blkid {DEVICE}",
+        "description": "Identify filesystem type",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_fs",
+        "command": "sudo file -sL {DEVICE}",
+        "description": "Check filesystem info",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 3,
+        "action": "mount_explicit",
+        "command": "sudo mount -t {FS_TYPE} {DEVICE} {MOUNTPOINT}",
+        "description": "Mount with explicit filesystem type",
+        "placeholder": "{FS_TYPE},{DEVICE},{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "mount | grep {MOUNTPOINT}",
+    "alternative_solution": "Check filesystem: sudo fsck -n {DEVICE}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "mount: {DEVICE} already mounted or {MOUNTPOINT} busy",
+    "context": "Device is already mounted or mountpoint is in use.",
+    "solution_explanation": "Unmount existing mount or use different mountpoint.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_mount",
+        "command": "mount | grep {DEVICE}",
+        "description": "Check if device is already mounted",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check_usage",
+        "command": "sudo lsof {MOUNTPOINT} 2>/dev/null || sudo fuser -m {MOUNTPOINT}",
+        "description": "Check what's using mountpoint",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 3,
+        "action": "unmount",
+        "command": "sudo umount {MOUNTPOINT}",
+        "description": "Unmount existing mount",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 4,
+        "action": "mount",
+        "command": "sudo mount {DEVICE} {MOUNTPOINT}",
+        "description": "Mount device",
+        "placeholder": "{DEVICE},{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "mount | grep {DEVICE}",
+    "alternative_solution": "Force unmount: sudo umount -l {MOUNTPOINT}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "target is busy",
+    "context": "Cannot unmount filesystem because it's in use.",
+    "solution_explanation": "Processes are using the filesystem. Identify and stop them.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "identify",
+        "command": "sudo lsof {MOUNTPOINT}",
+        "description": "List processes using mountpoint",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 2,
+        "action": "fuser",
+        "command": "sudo fuser -vm {MOUNTPOINT}",
+        "description": "Show detailed process information",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 3,
+        "action": "kill",
+        "command": "sudo fuser -km {MOUNTPOINT}",
+        "description": "Kill processes using mountpoint",
+        "placeholder": "{MOUNTPOINT}",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "unmount",
+        "command": "sudo umount {MOUNTPOINT}",
+        "description": "Unmount filesystem",
+        "placeholder": "{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "mount | grep -v {MOUNTPOINT}",
+    "alternative_solution": "Lazy unmount: sudo umount -l {MOUNTPOINT}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Structure needs cleaning",
+    "context": "Filesystem has errors and needs checking.",
+    "solution_explanation": "Filesystem has inconsistencies. Run fsck to repair.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "unmount",
+        "command": "sudo umount {DEVICE}",
+        "description": "Unmount filesystem (required for fsck)",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 2,
+        "action": "check",
+        "command": "sudo fsck -n {DEVICE}",
+        "description": "Check filesystem (dry-run)",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 3,
+        "action": "repair",
+        "command": "sudo fsck -y {DEVICE}",
+        "description": "Repair filesystem automatically",
+        "placeholder": "{DEVICE}",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "remount",
+        "command": "sudo mount {DEVICE} {MOUNTPOINT}",
+        "description": "Remount filesystem",
+        "placeholder": "{DEVICE},{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "sudo fsck -n {DEVICE}",
+    "alternative_solution": "Boot from live USB for root filesystem repairs"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Read-only file system",
+    "context": "Filesystem mounted as read-only.",
+    "solution_explanation": "Filesystem is in read-only mode due to errors. Remount or repair.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "mount | grep {MOUNTPOINT}",
+        "description": "Verify read-only status",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 2,
+        "action": "remount_rw",
+        "command": "sudo mount -o remount,rw {MOUNTPOINT}",
+        "description": "Try remounting as read-write",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 3,
+        "action": "check_errors",
+        "command": "dmesg | tail -50 | grep -i 'ext4\\|error'",
+        "description": "Check for filesystem errors"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "touch {MOUNTPOINT}/test_write && rm {MOUNTPOINT}/test_write",
+    "alternative_solution": "Run fsck if remount fails: sudo fsck {DEVICE}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Input/output error",
+    "context": "Hardware I/O error accessing disk.",
+    "solution_explanation": "Hardware failure or connection issue. Check disk health.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_dmesg",
+        "command": "dmesg | tail -100 | grep -i 'error\\|fail\\|ata'",
+        "description": "Check kernel messages for errors"
+      },
+      {
+        "step": 2,
+        "action": "smart_status",
+        "command": "sudo smartctl -H {DEVICE}",
+        "description": "Check SMART health status",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 3,
+        "action": "smart_info",
+        "command": "sudo smartctl -a {DEVICE}",
+        "description": "Get detailed SMART information",
+        "placeholder": "{DEVICE}"
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "sudo smartctl -H {DEVICE} | grep 'PASSED'",
+    "alternative_solution": "Backup data immediately and replace disk if failing"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "No such file or directory",
+    "context": "File or directory doesn't exist.",
+    "solution_explanation": "Path is incorrect or file was deleted. Verify path.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ls -la {PATH}",
+        "description": "Check if path exists",
+        "placeholder": "{PATH}"
+      },
+      {
+        "step": 2,
+        "action": "search",
+        "command": "sudo find / -name {FILENAME} 2>/dev/null | head -20",
+        "description": "Search for file by name",
+        "placeholder": "{FILENAME}"
+      },
+      {
+        "step": 3,
+        "action": "check_parent",
+        "command": "ls -la $(dirname {PATH})",
+        "description": "Check parent directory",
+        "placeholder": "{PATH}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -e {PATH} && echo OK",
+    "alternative_solution": "Restore from backup if file was accidentally deleted"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Permission denied",
+    "context": "Insufficient permissions to access file or directory.",
+    "solution_explanation": "User lacks required permissions. Check and modify permissions.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_perms",
+        "command": "ls -la {PATH}",
+        "description": "Check current permissions",
+        "placeholder": "{PATH}"
+      },
+      {
+        "step": 2,
+        "action": "check_user",
+        "command": "whoami",
+        "description": "Verify current user"
+      },
+      {
+        "step": 3,
+        "action": "check_groups",
+        "command": "groups",
+        "description": "Check user group memberships"
+      },
+      {
+        "step": 4,
+        "action": "fix_perms",
+        "command": "sudo chmod +r {PATH}",
+        "description": "Add read permission",
+        "placeholder": "{PATH}",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -r {PATH} && echo OK",
+    "alternative_solution": "Change ownership: sudo chown {USER} {PATH}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "cannot create directory: File exists",
+    "context": "Directory already exists.",
+    "solution_explanation": "Directory was already created. Check if it's what you need.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "ls -ld {DIRECTORY}",
+        "description": "Check directory exists",
+        "placeholder": "{DIRECTORY}"
+      },
+      {
+        "step": 2,
+        "action": "check_contents",
+        "command": "ls -la {DIRECTORY}",
+        "description": "List directory contents",
+        "placeholder": "{DIRECTORY}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -d {DIRECTORY} && echo OK",
+    "alternative_solution": "Use mkdir -p to create parent directories without error"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Too many levels of symbolic links",
+    "context": "Symlink loop detected.",
+    "solution_explanation": "Circular symlinks exist. Find and remove the loop.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "ls -l {SYMLINK}",
+        "description": "Check symlink target",
+        "placeholder": "{SYMLINK}"
+      },
+      {
+        "step": 2,
+        "action": "trace",
+        "command": "namei -l {SYMLINK}",
+        "description": "Trace symlink chain",
+        "placeholder": "{SYMLINK}"
+      },
+      {
+        "step": 3,
+        "action": "remove",
+        "command": "sudo rm {SYMLINK}",
+        "description": "Remove problematic symlink",
+        "placeholder": "{SYMLINK}",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -L {SYMLINK} && echo 'Still exists' || echo 'Removed'",
+    "alternative_solution": "Recreate symlink with correct target"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "No space left on device (inode exhaustion)",
+    "context": "No inodes available even though disk has space.",
+    "solution_explanation": "Too many small files. Delete unused files to free inodes.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_inodes",
+        "command": "df -i",
+        "description": "Check inode usage"
+      },
+      {
+        "step": 2,
+        "action": "find_dirs",
+        "command": "sudo find / -xdev -type d -exec sh -c 'echo $(find \"$1\" -maxdepth 1 | wc -l) $1' _ {} \\; 2>/dev/null | sort -rn | head -20",
+        "description": "Find directories with most files"
+      },
+      {
+        "step": 3,
+        "action": "clean_cache",
+        "command": "sudo find /var/cache -type f -delete 2>/dev/null || true",
+        "description": "Clean cache files"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "df -i / | awk 'NR==2 {if ($5+0 < 90) print \"OK\"}'",
+    "alternative_solution": "Remove old package cache: sudo apt-get clean"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Stale file handle",
+    "context": "NFS file handle is no longer valid.",
+    "solution_explanation": "NFS mount is stale. Remount the filesystem.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "mount | grep nfs",
+        "description": "List NFS mounts"
+      },
+      {
+        "step": 2,
+        "action": "force_unmount",
+        "command": "sudo umount -f {MOUNTPOINT}",
+        "description": "Force unmount NFS",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 3,
+        "action": "remount",
+        "command": "sudo mount {MOUNTPOINT}",
+        "description": "Remount NFS share",
+        "placeholder": "{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "mount | grep {MOUNTPOINT}",
+    "alternative_solution": "Lazy unmount: sudo umount -l {MOUNTPOINT} && sudo mount {MOUNTPOINT}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Cannot allocate memory (mmap)",
+    "context": "Cannot memory-map file.",
+    "solution_explanation": "Virtual memory exhausted. Free memory or increase limits.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_memory",
+        "command": "free -h",
+        "description": "Check available memory"
+      },
+      {
+        "step": 2,
+        "action": "check_limits",
+        "command": "cat /proc/sys/vm/max_map_count",
+        "description": "Check mmap limit"
+      },
+      {
+        "step": 3,
+        "action": "increase",
+        "command": "sudo sysctl -w vm.max_map_count=262144",
+        "description": "Increase mmap limit"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "cat /proc/sys/vm/max_map_count",
+    "alternative_solution": "Close memory-intensive applications"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "File name too long",
+    "context": "Filename exceeds filesystem limit (255 characters).",
+    "solution_explanation": "Shorten the filename.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "echo {FILENAME} | wc -c",
+        "description": "Check filename length",
+        "placeholder": "{FILENAME}"
+      },
+      {
+        "step": 2,
+        "action": "truncate",
+        "command": "echo 'Filename must be < 255 characters'",
+        "description": "Rename with shorter name"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Use shorter descriptive names"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Disk quota exceeded",
+    "context": "User has exceeded disk quota.",
+    "solution_explanation": "Delete files to free quota space.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_quota",
+        "command": "quota -s",
+        "description": "Check user quota"
+      },
+      {
+        "step": 2,
+        "action": "find_large",
+        "command": "du -h ~/ --max-depth=1 | sort -hr | head -10",
+        "description": "Find largest directories in home"
+      },
+      {
+        "step": 3,
+        "action": "clean",
+        "command": "rm -rf ~/.cache/* 2>/dev/null || true",
+        "description": "Clean user cache"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "quota -s",
+    "alternative_solution": "Request quota increase from administrator"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Cannot remove: Device or resource busy",
+    "context": "Cannot delete file/directory that's in use.",
+    "solution_explanation": "File is open by a process. Identify and close it.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "identify",
+        "command": "sudo lsof {PATH}",
+        "description": "Find processes using file",
+        "placeholder": "{PATH}"
+      },
+      {
+        "step": 2,
+        "action": "fuser",
+        "command": "sudo fuser -v {PATH}",
+        "description": "Detailed process information",
+        "placeholder": "{PATH}"
+      },
+      {
+        "step": 3,
+        "action": "kill",
+        "command": "sudo fuser -k {PATH}",
+        "description": "Kill processes using file",
+        "placeholder": "{PATH}",
+        "requires_confirmation": true
+      },
+      {
+        "step": 4,
+        "action": "remove",
+        "command": "rm {PATH}",
+        "description": "Remove file",
+        "placeholder": "{PATH}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test ! -e {PATH} && echo OK",
+    "alternative_solution": "Unmount if it's a mountpoint: sudo umount {PATH}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Operation not permitted (immutable)",
+    "context": "File has immutable attribute set.",
+    "solution_explanation": "Remove immutable attribute to allow modifications.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_attr",
+        "command": "lsattr {FILE}",
+        "description": "Check file attributes",
+        "placeholder": "{FILE}"
+      },
+      {
+        "step": 2,
+        "action": "remove_immutable",
+        "command": "sudo chattr -i {FILE}",
+        "description": "Remove immutable attribute",
+        "placeholder": "{FILE}"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "lsattr {FILE}",
+        "description": "Verify attribute removed",
+        "placeholder": "{FILE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "lsattr {FILE} | grep -v '^....i'",
+    "alternative_solution": "Check append-only flag: sudo chattr -a {FILE}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Transport endpoint is not connected",
+    "context": "NFS or FUSE mount disconnected.",
+    "solution_explanation": "Network filesystem lost connection. Remount.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "mount | grep {MOUNTPOINT}",
+        "description": "Check mount status",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 2,
+        "action": "force_unmount",
+        "command": "sudo umount -f -l {MOUNTPOINT}",
+        "description": "Force lazy unmount",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 3,
+        "action": "remount",
+        "command": "sudo mount {MOUNTPOINT}",
+        "description": "Remount filesystem",
+        "placeholder": "{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "mount | grep {MOUNTPOINT}",
+    "alternative_solution": "Check network connectivity to NFS server"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Bad file descriptor",
+    "context": "File descriptor is invalid or closed.",
+    "solution_explanation": "Application error. Restart the application.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "lsof -p {PID} 2>/dev/null",
+        "description": "List process file descriptors",
+        "placeholder": "{PID}"
+      },
+      {
+        "step": 2,
+        "action": "restart",
+        "command": "sudo systemctl restart {SERVICE}",
+        "description": "Restart service",
+        "placeholder": "{SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "systemctl is-active {SERVICE}",
+    "alternative_solution": "Check application logs for errors"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Directory not empty",
+    "context": "Cannot remove non-empty directory with rmdir.",
+    "solution_explanation": "Directory contains files. Use rm -r or empty it first.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "ls -la {DIRECTORY}",
+        "description": "List directory contents",
+        "placeholder": "{DIRECTORY}"
+      },
+      {
+        "step": 2,
+        "action": "count",
+        "command": "find {DIRECTORY} -type f | wc -l",
+        "description": "Count files in directory",
+        "placeholder": "{DIRECTORY}"
+      },
+      {
+        "step": 3,
+        "action": "remove",
+        "command": "rm -rf {DIRECTORY}",
+        "description": "Remove directory and contents",
+        "placeholder": "{DIRECTORY}",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "test ! -d {DIRECTORY} && echo OK",
+    "alternative_solution": "Empty first: rm {DIRECTORY}/* then rmdir {DIRECTORY}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Is a directory",
+    "context": "Trying to perform file operation on directory.",
+    "solution_explanation": "Path points to directory, not file. Check path.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "test -d {PATH} && echo 'Directory' || echo 'Not directory'",
+        "description": "Verify it's a directory",
+        "placeholder": "{PATH}"
+      },
+      {
+        "step": 2,
+        "action": "list",
+        "command": "ls -la {PATH}",
+        "description": "List directory contents",
+        "placeholder": "{PATH}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Use directory operations or specify file within directory"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Not a directory",
+    "context": "Trying to use file as directory.",
+    "solution_explanation": "Path is a file, not directory. Check path.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "test -f {PATH} && echo 'File' || echo 'Not file'",
+        "description": "Verify it's a file",
+        "placeholder": "{PATH}"
+      },
+      {
+        "step": 2,
+        "action": "check",
+        "command": "ls -la {PATH}",
+        "description": "Check path details",
+        "placeholder": "{PATH}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Remove file and create directory: rm {PATH} && mkdir {PATH}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Invalid cross-device link",
+    "context": "Cannot create hard link across filesystems.",
+    "solution_explanation": "Hard links only work within same filesystem. Use symlink instead.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_fs",
+        "command": "df -h {SOURCE} {DEST}",
+        "description": "Check if on different filesystems",
+        "placeholder": "{SOURCE},{DEST}"
+      },
+      {
+        "step": 2,
+        "action": "symlink",
+        "command": "ln -s {SOURCE} {DEST}",
+        "description": "Create symbolic link instead",
+        "placeholder": "{SOURCE},{DEST}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "test -L {DEST} && echo OK",
+    "alternative_solution": "Copy file instead: cp {SOURCE} {DEST}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Text file busy",
+    "context": "Cannot modify executable that's currently running.",
+    "solution_explanation": "Binary is in use. Stop processes first.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "find_process",
+        "command": "sudo lsof {BINARY}",
+        "description": "Find processes using binary",
+        "placeholder": "{BINARY}"
+      },
+      {
+        "step": 2,
+        "action": "stop",
+        "command": "sudo systemctl stop {SERVICE}",
+        "description": "Stop service",
+        "placeholder": "{SERVICE}"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "sudo lsof {BINARY} || echo 'No processes'",
+        "description": "Verify binary is not in use",
+        "placeholder": "{BINARY}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "sudo lsof {BINARY} && echo 'Still busy' || echo 'Free'",
+    "alternative_solution": "Kill processes: sudo fuser -k {BINARY}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Argument list too long",
+    "context": "Command line arguments exceed limit.",
+    "solution_explanation": "Too many arguments for shell. Use find -exec or xargs.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_limit",
+        "command": "getconf ARG_MAX",
+        "description": "Check argument limit"
+      },
+      {
+        "step": 2,
+        "action": "use_find",
+        "command": "find {DIRECTORY} -type f -exec {COMMAND} {} +",
+        "description": "Use find with -exec",
+        "placeholder": "{DIRECTORY},{COMMAND}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Use xargs: find {DIRECTORY} -type f | xargs {COMMAND}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Cannot create regular file: File exists",
+    "context": "File already exists, cannot overwrite.",
+    "solution_explanation": "File exists and noclobber is set. Remove or use force.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "ls -la {FILE}",
+        "description": "Verify file exists",
+        "placeholder": "{FILE}"
+      },
+      {
+        "step": 2,
+        "action": "backup",
+        "command": "cp {FILE} {FILE}.backup",
+        "description": "Backup existing file",
+        "placeholder": "{FILE}"
+      },
+      {
+        "step": 3,
+        "action": "remove",
+        "command": "rm {FILE}",
+        "description": "Remove existing file",
+        "placeholder": "{FILE}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "test ! -e {FILE} && echo OK",
+    "alternative_solution": "Force overwrite: command >| {FILE}"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Value too large for defined data type",
+    "context": "File size exceeds filesystem limits.",
+    "solution_explanation": "File is too large for 32-bit filesystem. Use 64-bit filesystem.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_fs",
+        "command": "df -T {MOUNTPOINT}",
+        "description": "Check filesystem type",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 2,
+        "action": "check_size",
+        "command": "ls -lh {FILE}",
+        "description": "Check file size",
+        "placeholder": "{FILE}"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "",
+    "alternative_solution": "Use ext4 or XFS which support large files"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "Requested operation requires superuser privilege",
+    "context": "Operation requires root access.",
+    "solution_explanation": "Use sudo for privileged operations.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify_sudo",
+        "command": "sudo -v",
+        "description": "Verify sudo access"
+      },
+      {
+        "step": 2,
+        "action": "retry",
+        "command": "sudo {COMMAND}",
+        "description": "Retry command with sudo",
+        "placeholder": "{COMMAND}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "groups | grep -q sudo",
+    "alternative_solution": "Request sudo access from administrator"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "File table overflow",
+    "context": "System file table is full.",
+    "solution_explanation": "Too many open files system-wide. Increase limits or close files.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_current",
+        "command": "cat /proc/sys/fs/file-nr",
+        "description": "Check open file count"
+      },
+      {
+        "step": 2,
+        "action": "check_max",
+        "command": "cat /proc/sys/fs/file-max",
+        "description": "Check maximum files"
+      },
+      {
+        "step": 3,
+        "action": "increase",
+        "command": "echo 'fs.file-max = 2097152' | sudo tee -a /etc/sysctl.conf && sudo sysctl -p",
+        "description": "Increase file limit"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "cat /proc/sys/fs/file-max",
+    "alternative_solution": "Find processes with too many files: lsof | awk '{print $2}' | sort | uniq -c | sort -rn | head"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "ext4 filesystem corruption detected",
+    "context": "ext4 filesystem has errors.",
+    "solution_explanation": "Run fsck to repair filesystem corruption.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_mount",
+        "command": "mount | grep {DEVICE}",
+        "description": "Check if mounted",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 2,
+        "action": "unmount",
+        "command": "sudo umount {DEVICE}",
+        "description": "Unmount device",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 3,
+        "action": "check",
+        "command": "sudo e2fsck -n {DEVICE}",
+        "description": "Check without repairs",
+        "placeholder": "{DEVICE}"
+      },
+      {
+        "step": 4,
+        "action": "repair",
+        "command": "sudo e2fsck -fy {DEVICE}",
+        "description": "Force automatic repair",
+        "placeholder": "{DEVICE}",
+        "requires_confirmation": true
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": true,
+    "requires_reboot": false,
+    "validation_command": "sudo e2fsck -n {DEVICE}",
+    "alternative_solution": "Boot from live USB for root filesystem"
+  },
+  {
+    "category": "Disk/Filesystem",
+    "error_trigger": "WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED for SSHFS",
+    "context": "SSH host key changed for SSHFS mount.",
+    "solution_explanation": "Remove old host key and remount.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "mount | grep sshfs",
+        "description": "Check SSHFS mounts"
+      },
+      {
+        "step": 2,
+        "action": "remove_key",
+        "command": "ssh-keygen -R {HOST}",
+        "description": "Remove old host key",
+        "placeholder": "{HOST}"
+      },
+      {
+        "step": 3,
+        "action": "unmount",
+        "command": "fusermount -u {MOUNTPOINT}",
+        "description": "Unmount SSHFS",
+        "placeholder": "{MOUNTPOINT}"
+      },
+      {
+        "step": 4,
+        "action": "remount",
+        "command": "sshfs {USER}@{HOST}:{REMOTE_PATH} {MOUNTPOINT}",
+        "description": "Remount SSHFS",
+        "placeholder": "{USER},{HOST},{REMOTE_PATH},{MOUNTPOINT}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "mount | grep {MOUNTPOINT}",
+    "alternative_solution": "Accept new host key when reconnecting"
+  },
+  {
+    "category": "Boot/GRUB",
+    "error_trigger": "error: no such partition",
+    "context": "GRUB cannot find boot partition.",
+    "solution_explanation": "Boot partition UUID changed or disk order changed. Reinstall GRUB.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "sudo blkid",
+        "description": "List all partition UUIDs"
+      },
+      {
+        "step": 2,
+        "action": "mount_boot",
+        "command": "sudo mount /dev/sda1 /boot",
+        "description": "Mount boot partition",
+        "placeholder": "/dev/sda1"
+      },
+      {
+        "step": 3,
+        "action": "update_grub",
+        "command": "sudo update-grub",
+        "description": "Update GRUB configuration"
+      },
+      {
+        "step": 4,
+        "action": "reinstall",
+        "command": "sudo grub-install /dev/sda",
+        "description": "Reinstall GRUB to disk",
+        "placeholder": "/dev/sda"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": true,
+    "requires_reboot": true,
+    "validation_command": "sudo grub-install --version",
+    "alternative_solution": "Boot from live USB and run boot-repair"
+  },
+  {
+    "category": "Boot/GRUB",
+    "error_trigger": "error: file '/boot/grub/i386-pc/normal.mod' not found",
+    "context": "GRUB files missing or corrupted.",
+    "solution_explanation": "Reinstall GRUB packages.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "reinstall",
+        "command": "sudo apt-get install --reinstall grub-pc grub-common",
+        "description": "Reinstall GRUB packages"
+      },
+      {
+        "step": 2,
+        "action": "update",
+        "command": "sudo update-grub",
+        "description": "Update GRUB config"
+      },
+      {
+        "step": 3,
+        "action": "install_disk",
+        "command": "sudo grub-install /dev/sda",
+        "description": "Install to disk",
+        "placeholder": "/dev/sda"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "ls /boot/grub/i386-pc/normal.mod",
+    "alternative_solution": "Boot from live USB and chroot to fix"
+  },
+  {
+    "category": "Boot/GRUB",
+    "error_trigger": "GRUB loading... Welcome to GRUB! error: unknown filesystem",
+    "context": "GRUB cannot read filesystem.",
+    "solution_explanation": "Filesystem type not supported by GRUB or corruption.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "boot_rescue",
+        "command": "Boot from live USB",
+        "description": "Boot from external media"
+      },
+      {
+        "step": 2,
+        "action": "check_fs",
+        "command": "sudo fsck -n /dev/sda1",
+        "description": "Check filesystem",
+        "placeholder": "/dev/sda1"
+      },
+      {
+        "step": 3,
+        "action": "reinstall_grub",
+        "command": "sudo grub-install --boot-directory=/mnt/boot /dev/sda",
+        "description": "Reinstall GRUB",
+        "placeholder": "/dev/sda"
+      }
+    ],
+    "risk_level": "Critical",
+    "backup_required": true,
+    "requires_reboot": true,
+    "validation_command": "",
+    "alternative_solution": "Restore from backup"
+  },
+  {
+    "category": "User/Permissions",
+    "error_trigger": "sudo: {USER} is not in the sudoers file. This incident will be reported",
+    "context": "User lacks sudo privileges.",
+    "solution_explanation": "Add user to sudo group.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "groups {USER}",
+        "description": "Check user groups",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 2,
+        "action": "add_sudo",
+        "command": "sudo usermod -aG sudo {USER}",
+        "description": "Add to sudo group",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 3,
+        "action": "verify",
+        "command": "groups {USER}",
+        "description": "Verify group added",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 4,
+        "action": "logout",
+        "command": "echo 'User must log out and back in'",
+        "description": "Group membership requires new login"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "groups {USER} | grep -q sudo",
+    "alternative_solution": "Edit /etc/sudoers with visudo"
+  },
+  {
+    "category": "User/Permissions",
+    "error_trigger": "passwd: Authentication token manipulation error",
+    "context": "Cannot change password.",
+    "solution_explanation": "Password file is locked or filesystem issue.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_lock",
+        "command": "ls -la /etc/passwd* /etc/shadow*",
+        "description": "Check for lock files"
+      },
+      {
+        "step": 2,
+        "action": "remove_lock",
+        "command": "sudo rm -f /etc/passwd.lock /etc/shadow.lock",
+        "description": "Remove lock files"
+      },
+      {
+        "step": 3,
+        "action": "check_fs",
+        "command": "df -h /etc",
+        "description": "Check filesystem status"
+      },
+      {
+        "step": 4,
+        "action": "remount",
+        "command": "sudo mount -o remount,rw /",
+        "description": "Remount root as read-write"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "passwd --status {USER}",
+    "alternative_solution": "Boot single-user mode to reset password"
+  },
+  {
+    "category": "User/Permissions",
+    "error_trigger": "su: Authentication failure",
+    "context": "Cannot switch user - wrong password.",
+    "solution_explanation": "Verify password or reset if forgotten.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify_user",
+        "command": "id {USER}",
+        "description": "Verify user exists",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 2,
+        "action": "check_locked",
+        "command": "sudo passwd -S {USER}",
+        "description": "Check if account is locked",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 3,
+        "action": "unlock",
+        "command": "sudo passwd -u {USER}",
+        "description": "Unlock account if locked",
+        "placeholder": "{USER}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "sudo passwd -S {USER} | grep -v 'L '",
+    "alternative_solution": "Reset password as root: sudo passwd {USER}"
+  },
+  {
+    "category": "User/Permissions",
+    "error_trigger": "useradd: user '{USER}' already exists",
+    "context": "Cannot create user that exists.",
+    "solution_explanation": "User already exists in system.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "id {USER}",
+        "description": "Check user info",
+        "placeholder": "{USER}"
+      },
+      {
+        "step": 2,
+        "action": "check_home",
+        "command": "ls -ld /home/{USER}",
+        "description": "Check home directory",
+        "placeholder": "{USER}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "id {USER}",
+    "alternative_solution": "Delete and recreate: sudo deluser {USER} && sudo useradd {USER}"
+  },
+  {
+    "category": "GPU/Drivers",
+    "error_trigger": "NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver",
+    "context": "NVIDIA driver not loaded or mismatch.",
+    "solution_explanation": "Reinstall NVIDIA driver or load kernel module.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_module",
+        "command": "lsmod | grep nvidia",
+        "description": "Check if NVIDIA module loaded"
+      },
+      {
+        "step": 2,
+        "action": "load_module",
+        "command": "sudo modprobe nvidia",
+        "description": "Try loading NVIDIA module"
+      },
+      {
+        "step": 3,
+        "action": "check_installed",
+        "command": "dpkg -l | grep nvidia-driver",
+        "description": "Check installed drivers"
+      },
+      {
+        "step": 4,
+        "action": "reinstall",
+        "command": "sudo apt-get install --reinstall nvidia-driver-{VERSION}",
+        "description": "Reinstall driver",
+        "placeholder": "{VERSION}"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "nvidia-smi",
+    "alternative_solution": "Purge and reinstall: sudo apt-get purge nvidia-* && sudo ubuntu-drivers autoinstall"
+  },
+  {
+    "category": "GPU/Drivers",
+    "error_trigger": "Failed to initialize NVML: Driver/library version mismatch",
+    "context": "NVIDIA driver and library version mismatch.",
+    "solution_explanation": "Reboot to load new driver or reinstall matching versions.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_version",
+        "command": "cat /proc/driver/nvidia/version",
+        "description": "Check loaded driver version"
+      },
+      {
+        "step": 2,
+        "action": "check_package",
+        "command": "dpkg -l | grep nvidia-driver",
+        "description": "Check installed package version"
+      },
+      {
+        "step": 3,
+        "action": "reboot",
+        "command": "echo 'Reboot required to load updated driver'",
+        "description": "System reboot needed"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "nvidia-smi",
+    "alternative_solution": "Reload module: sudo rmmod nvidia_drm nvidia_modeset nvidia && sudo modprobe nvidia"
+  },
+  {
+    "category": "GPU/Drivers",
+    "error_trigger": "No devices were found",
+    "context": "GPU not detected by system.",
+    "solution_explanation": "Driver not loaded, GPU not seated, or BIOS disabled.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_pci",
+        "command": "lspci | grep -i vga",
+        "description": "Check if GPU detected by PCI"
+      },
+      {
+        "step": 2,
+        "action": "check_nvidia_pci",
+        "command": "lspci | grep -i nvidia",
+        "description": "Check NVIDIA devices"
+      },
+      {
+        "step": 3,
+        "action": "reseat",
+        "command": "echo 'Power off and reseat GPU if not detected'",
+        "description": "Hardware check needed"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "lspci | grep -i nvidia",
+    "alternative_solution": "Check BIOS settings for GPU enablement"
+  },
+  {
+    "category": "GPU/Drivers",
+    "error_trigger": "modprobe: ERROR: could not insert 'nvidia': Required key not available",
+    "context": "Secure Boot blocking unsigned NVIDIA driver.",
+    "solution_explanation": "Disable Secure Boot or sign the driver.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_secureboot",
+        "command": "mokutil --sb-state",
+        "description": "Check Secure Boot status"
+      },
+      {
+        "step": 2,
+        "action": "info",
+        "command": "echo 'Disable Secure Boot in BIOS/UEFI or enroll MOK key'",
+        "description": "Action required in BIOS"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "mokutil --sb-state | grep -i disabled",
+    "alternative_solution": "Sign driver with MOK: sudo /usr/src/linux-headers-$(uname -r)/scripts/sign-file"
+  },
+  {
+    "category": "Performance",
+    "error_trigger": "High CPU usage by {PROCESS}",
+    "context": "Process consuming excessive CPU.",
+    "solution_explanation": "Identify and manage resource-intensive process.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "verify",
+        "command": "top -bn1 | head -20",
+        "description": "Check top CPU processes"
+      },
+      {
+        "step": 2,
+        "action": "details",
+        "command": "ps aux | grep {PROCESS}",
+        "description": "Get process details",
+        "placeholder": "{PROCESS}"
+      },
+      {
+        "step": 3,
+        "action": "nice",
+        "command": "sudo renice -n 10 -p {PID}",
+        "description": "Lower process priority",
+        "placeholder": "{PID}"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "top -bn1 | grep {PROCESS}",
+    "alternative_solution": "Restart service: sudo systemctl restart {SERVICE}"
+  },
+  {
+    "category": "Performance",
+    "error_trigger": "Out of memory: Killed process {PID}",
+    "context": "OOM killer terminated process.",
+    "solution_explanation": "System ran out of memory. Increase RAM or reduce usage.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "free -h",
+        "description": "Check memory usage"
+      },
+      {
+        "step": 2,
+        "action": "check_swap",
+        "command": "swapon --show",
+        "description": "Check swap space"
+      },
+      {
+        "step": 3,
+        "action": "add_swap",
+        "command": "sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile",
+        "description": "Add swap file"
+      },
+      {
+        "step": 4,
+        "action": "make_permanent",
+        "command": "echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab",
+        "description": "Make swap permanent"
+      }
+    ],
+    "risk_level": "High",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "swapon --show",
+    "alternative_solution": "Identify memory hogs: ps aux --sort=-%mem | head -10"
+  },
+  {
+    "category": "Performance",
+    "error_trigger": "Too many open files",
+    "context": "Process hit file descriptor limit.",
+    "solution_explanation": "Increase file descriptor limits for process/user.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check_limit",
+        "command": "ulimit -n",
+        "description": "Check current limit"
+      },
+      {
+        "step": 2,
+        "action": "increase_session",
+        "command": "ulimit -n 65536",
+        "description": "Increase for current session"
+      },
+      {
+        "step": 3,
+        "action": "permanent",
+        "command": "echo '*  soft  nofile  65536' | sudo tee -a /etc/security/limits.conf && echo '*  hard  nofile  65536' | sudo tee -a /etc/security/limits.conf",
+        "description": "Set permanent limits"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": true,
+    "validation_command": "ulimit -n",
+    "alternative_solution": "Close unused files in application"
+  },
+  {
+    "category": "Performance",
+    "error_trigger": "zombie processes detected",
+    "context": "Dead processes not reaped by parent.",
+    "solution_explanation": "Identify parent process and restart if needed.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "list",
+        "command": "ps aux | grep -w Z",
+        "description": "List zombie processes"
+      },
+      {
+        "step": 2,
+        "action": "find_parent",
+        "command": "ps -o ppid= -p {ZOMBIE_PID}",
+        "description": "Find parent process",
+        "placeholder": "{ZOMBIE_PID}"
+      },
+      {
+        "step": 3,
+        "action": "restart_parent",
+        "command": "sudo systemctl restart {PARENT_SERVICE}",
+        "description": "Restart parent service",
+        "placeholder": "{PARENT_SERVICE}"
+      }
+    ],
+    "risk_level": "Low",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "ps aux | grep -w Z | wc -l",
+    "alternative_solution": "Kill parent: sudo kill {PARENT_PID}"
+  },
+  {
+    "category": "Performance",
+    "error_trigger": "Load average very high ({LOAD})",
+    "context": "System load exceeds normal levels.",
+    "solution_explanation": "Identify resource-intensive processes.",
+    "steps": [
+      {
+        "step": 1,
+        "action": "check",
+        "command": "uptime",
+        "description": "Check load averages"
+      },
+      {
+        "step": 2,
+        "action": "top_cpu",
+        "command": "ps aux --sort=-%cpu | head -10",
+        "description": "Top CPU processes"
+      },
+      {
+        "step": 3,
+        "action": "io_wait",
+        "command": "iostat -x 1 3",
+        "description": "Check for I/O wait"
+      }
+    ],
+    "risk_level": "Medium",
+    "backup_required": false,
+    "requires_reboot": false,
+    "validation_command": "uptime",
+    "alternative_solution": "Check running processes: ps aux | wc -l"
+  }
+]
